@@ -17,4 +17,8 @@ class Ballot extends Model
     {
         return $this->hasMany(Option::class)->orderBy('display_order');
     }
+    public function votes()
+    {
+        return $this->hasMany(Vote::class);
+    }
 }

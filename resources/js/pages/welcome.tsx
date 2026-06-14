@@ -72,7 +72,7 @@ export default function Welcome({ allElections = [] }: Props) {
     };
 
     const getLeaderboardUrl = (election: Election) => {
-        return `/elections/${election.id}/results`;
+        return `/leaderboard/${election.identifier}`;
     };
 
     const formatDate = (date: string | null) => {

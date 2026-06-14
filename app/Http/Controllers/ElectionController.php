@@ -53,7 +53,7 @@ class ElectionController extends Controller
      */
     public function show(Election $election)
     {
-        $election = Election::with('candidates', 'ballots.options', 'voters','votes')->find($election->id);
+        $election = Election::with('candidates', 'ballots.options', 'voters', 'votes')->find($election->id);
         return inertia('Elections/Show', ['election' => $election]);
     }
 
@@ -96,37 +96,62 @@ class ElectionController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'voter_id' => 'nullable|string|max:255',
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 'max:255',
                 Rule::unique('voters')->where(function ($query) use ($election) {
                     return $query->where('election_id', $election->id);
-                }),
+                })->ignore(null, 'email'), // Allow multiple null emails
             ],
         ]);
 
-        // Check if voter already exists for this election
-        $existingVoter = Voter::where('email', $validated['email'])
-            ->where('election_id', $election->id)
+
+        // Check if at least one identifier is provided
+        if (empty($validated['voter_id']) && empty($validated['email'])) {
+            return redirect()->back()->withErrors([
+                'email' => 'Either Email or Voter ID is required.',
+                'voter_id' => 'Either Email or Voter ID is required.'
+            ])->withInput();
+        }
+
+        // Check if voter already exists for this election by email OR voter_id
+        $existingVoter = Voter::where('election_id', $election->id)
+            ->where(function ($query) use ($validated) {
+                if (!empty($validated['email'])) {
+                    $query->where('email', $validated['email']);
+                }
+                if (!empty($validated['voter_id'])) {
+                    $query->orWhere('voter_id', $validated['voter_id']);
+                }
+            })
             ->first();
 
         if ($existingVoter) {
+            $errorField = $existingVoter->email === $validated['email'] ? 'email' : 'voter_id';
+            $errorMessage = $existingVoter->email === $validated['email']
+                ? 'This email is already registered for this election.'
+                : 'This Voter ID is already registered for this election.';
+
             return redirect()->back()->withErrors([
-                'email' => 'This voter has already been added to this election.'
+                $errorField => $errorMessage
             ])->withInput();
         }
 
         $voter = new Voter();
         $voter->election_id = $election->id;
         $voter->name = $validated['name'];
-        $voter->email = $validated['email'];
+        $voter->voter_id = $validated['voter_id'] ?? null;
+        $voter->email = $validated['email'] ?? null;
         $voter->voter_token = $this->generateUniqueVoterKey();
         $voter->invited_at = now();
         $voter->save();
 
-        // Send invitation email
-        // Mail::to($voter->email)->send(new VoterInvitation($voter, $election));
+        // Send invitation email (only if email exists)
+        if ($voter->email) {
+            // Mail::to($voter->email)->send(new VoterInvitation($voter, $election));
+        }
 
         return redirect()->back()->with('success', 'Voter added successfully!');
     }
@@ -140,5 +165,41 @@ class ElectionController extends Controller
         } while (Voter::where('voter_token', $key)->exists());
 
         return $key;
+    }
+
+    public function updateLeaderboardStatus(Request $request, $electionId)
+    {
+        $election = Election::findOrFail($electionId);
+        $election->leaderboard_on = $request->input('leaderboard_on', false);
+        $election->save();
+
+        return redirect()->back()->with('success', 'Leaderboard status updated successfully.');
+    }
+
+    public function launch($electionId)
+    {
+        Election::findOrFail($electionId)->update([
+            'status' => 'active'
+        ]);
+
+        return redirect()->back()->with('success', 'Election launched successfully');
+    }
+
+    public function pause(Election $election)
+    {
+        $election->update(['status' => 'paused']);
+        return back();
+    }
+
+    public function resume(Election $election)
+    {
+        $election->update(['status' => 'active']);
+        return back();
+    }
+
+    public function end(Election $election)
+    {
+        $election->update(['status' => 'completed']);
+        return back();
     }
 }

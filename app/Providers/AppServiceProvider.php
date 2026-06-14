@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
 
-        Voter::observe(VoterObserver::class);
+        // Voter::observe(VoterObserver::class);
     }
 
     /**

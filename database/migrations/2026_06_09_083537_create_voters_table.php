@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('election_id');
             $table->string('name');
-            $table->string('email');
+            $table->string('email')->nullable();
+            $table->string('voter_id')->nullable();
             $table->string('voter_token')->unique();
             $table->boolean('has_voted')->default(false);
             $table->timestamp('invited_at')->nullable();
@@ -23,6 +24,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('election_id')->references('id')->on('elections')->onDelete('cascade');
+
+            $table->unique(['election_id', 'email']);
+            $table->unique(['election_id', 'voter_id']);
         });
     }
 

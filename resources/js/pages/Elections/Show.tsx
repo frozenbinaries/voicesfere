@@ -22,8 +22,16 @@ import {
     User,
     Mail,
     Image as ImageIcon,
+    Globe,
+    EyeOff,
+    Eye as EyeIcon,
+    IdCard,
+    Info,
+    ChevronRight,
+    ChevronLeft,
+    ExternalLink,
 } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import CreateBallotModal from '@/components/CreateBallotModal';
 import OptionModal from '@/components/OptionModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
@@ -57,22 +65,12 @@ interface Ballot {
 interface Voter {
     id: number;
     name: string;
-    email: string;
+    email: string | null;
+    voter_id: string | null;
+    voter_token: string;
     has_voted?: boolean;
+    invited_at?: string | null;
     voted_at?: string | null;
-}
-
-interface Vote {
-    id: number;
-    option_id: number;
-    voter_id: number;
-    ballot_id: number;
-    election_id: number;
-    metadata?: Record<string, any>;
-    ip_address?: string | null;
-    voter_token?: string | null;
-     created_at: string;
-     updated_at: string;
 }
 
 interface Election {
@@ -87,9 +85,9 @@ interface Election {
     created_at: string;
     updated_at: string;
     timezone?: string;
+    leaderboard_on?: boolean;
     ballots?: Ballot[];
     voters?: Voter[];
-    voters_count?: number;
     votes_count?: number;
 }
 
@@ -129,6 +127,173 @@ const ballotTypeColors: Record<
     },
 };
 
+// Helper function to get help link
+const getHelpLink = (anchorId: string) => {
+    return `/help#${anchorId}`;
+};
+
+// ─── Leaderboard Settings Modal ──────────────────────────────────────────────
+function LeaderboardSettingsModal({
+    isOpen,
+    onClose,
+    election,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    election: Election;
+}) {
+    const [leaderboardOn, setLeaderboardOn] = useState(
+        election.leaderboard_on ?? true,
+    );
+    const [saving, setSaving] = useState(false);
+
+    if (!isOpen) return null;
+
+    const getLeaderboardMessage = () => {
+        if (election.status === 'active') {
+            return 'When enabled, voters will be able to see live results as votes are cast.';
+        }
+        if (election.status === 'completed') {
+            return 'When enabled, people will be able to see the final results of this election.';
+        }
+        return 'When enabled, people will immediately start seeing results once the voting has started.';
+    };
+
+    const handleSave = () => {
+        setSaving(true);
+        router.put(
+            `/elections/${election.id}/leaderboard`,
+            {
+                leaderboard_on: leaderboardOn,
+            },
+            {
+                onSuccess: () => {
+                    setSaving(false);
+                    onClose();
+                    router.reload();
+                },
+                onError: () => {
+                    setSaving(false);
+                },
+            },
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="relative z-10 w-full max-w-md animate-in rounded-xl bg-white shadow-xl duration-200 fade-in zoom-in dark:bg-[#161615]">
+                <div className="flex items-center justify-between border-b border-[#e3e3e0] px-6 py-4 dark:border-[#3E3E3A]">
+                    <div>
+                        <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                            Leaderboard Settings
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Control who can see election results
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="space-y-4 p-6">
+                    <div className="flex items-center justify-between rounded-lg border border-[#e3e3e0] p-4 dark:border-[#3E3E3A]">
+                        <div className="flex items-center gap-3">
+                            {leaderboardOn ? (
+                                <Globe className="h-5 w-5 text-green-600" />
+                            ) : (
+                                <EyeOff className="h-5 w-5 text-red-600" />
+                            )}
+                            <div>
+                                <p className="font-medium text-[#1b1b18] dark:text-white">
+                                    Public Leaderboard
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {getLeaderboardMessage()}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setLeaderboardOn(!leaderboardOn)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all ${
+                                leaderboardOn
+                                    ? 'bg-red-600'
+                                    : 'bg-gray-300 dark:bg-gray-700'
+                            }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all ${
+                                    leaderboardOn
+                                        ? 'translate-x-6'
+                                        : 'translate-x-1'
+                                }`}
+                            />
+                        </button>
+                    </div>
+
+                    <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <div className="flex items-start gap-2">
+                            <EyeIcon className="mt-0.5 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <div className="text-xs text-blue-800 dark:text-blue-300">
+                                {leaderboardOn ? (
+                                    <>
+                                        <p className="font-medium">
+                                            Leaderboard is visible
+                                        </p>
+                                        <p className="mt-1">
+                                            {election.status === 'active'
+                                                ? 'Voters can see live results in real-time.'
+                                                : election.status ===
+                                                    'completed'
+                                                  ? 'Final results are publicly visible.'
+                                                  : 'Results will appear once voting begins.'}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="font-medium">
+                                            Leaderboard is hidden
+                                        </p>
+                                        <p className="mt-1">
+                                            No one can see the results. You can
+                                            enable this at any time.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-3 border-t border-[#e3e3e0] px-6 py-4 dark:border-[#3E3E3A]">
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg border border-[#e3e3e0] px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                    >
+                        {saving ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : (
+                            <CheckCircle className="h-4 w-4" />
+                        )}
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Add Voter Modal ──────────────────────────────────────────────────────────
 function AddVoterModal({
     isOpen,
@@ -140,29 +305,75 @@ function AddVoterModal({
     electionId: number;
 }) {
     const [name, setName] = useState('');
+    const [voterId, setVoterId] = useState('');
     const [email, setEmail] = useState('');
     const [saving, setSaving] = useState(false);
     const [importing, setImporting] = useState(false);
+    const [errors, setErrors] = useState<{
+        name?: string;
+        voter_id?: string;
+        email?: string;
+    }>({});
     const fileRef = useRef<HTMLInputElement | null>(null);
 
     if (!isOpen) return null;
 
     const handleAddSingle = () => {
-        if (!name.trim() || !email.trim()) return;
+        const newErrors: { name?: string; voter_id?: string; email?: string } =
+            {};
+
+        if (!name.trim()) {
+            newErrors.name = 'Name is required';
+        }
+
+        const hasEmail = email.trim().length > 0;
+        const hasVoterId = voterId.trim().length > 0;
+
+        if (!hasEmail && !hasVoterId) {
+            newErrors.email = 'Either Email or Voter ID is required';
+            newErrors.voter_id = 'Either Email or Voter ID is required';
+        }
+
+        if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+
+        setErrors({});
         setSaving(true);
+
         router.post(
             `/elections/${electionId}/voters`,
-            { name, email },
+            {
+                name: name.trim(),
+                voter_id: voterId.trim() || null,
+                email: email.trim() || null,
+            },
             {
                 onSuccess: () => {
                     setSaving(false);
                     setName('');
+                    setVoterId('');
                     setEmail('');
+                    setErrors({});
                     onClose();
                     router.reload();
                 },
-                onError: () => {
+                onError: (errorResponse) => {
                     setSaving(false);
+                    if (errorResponse.email) {
+                        setErrors({ email: errorResponse.email });
+                    } else if (errorResponse.voter_id) {
+                        setErrors({ voter_id: errorResponse.voter_id });
+                    } else {
+                        setErrors({
+                            email: 'Failed to add voter. Please try again.',
+                        });
+                    }
                 },
             },
         );
@@ -189,7 +400,7 @@ function AddVoterModal({
 
     const downloadTemplate = () => {
         const csv =
-            'name,email\nJane Doe,jane@example.com\nJohn Smith,john@example.com\n';
+            'name,voter_id,email\nJane Doe,JANE001,jane@example.com\nJohn Smith,JOHN001,john@example.com\nBob Wilson,,bob@example.com\nAlice Brown,ALICE001,\n';
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -228,26 +439,118 @@ function AddVoterModal({
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Full name"
-                                className="w-full rounded-lg border border-[#e3e3e0] py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white"
+                                placeholder="Full name *"
+                                className={`w-full rounded-lg border ${
+                                    errors.name
+                                        ? 'border-red-500'
+                                        : 'border-[#e3e3e0]'
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
                             />
+                            {errors.name && (
+                                <p className="mt-1 text-xs text-red-500">
+                                    {errors.name}
+                                </p>
+                            )}
                         </div>
+
+                        <div className="relative">
+                            <IdCard className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={voterId}
+                                onChange={(e) => setVoterId(e.target.value)}
+                                placeholder="Voter ID (required if no email)"
+                                className={`w-full rounded-lg border ${
+                                    errors.voter_id
+                                        ? 'border-red-500'
+                                        : 'border-[#e3e3e0]'
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                            />
+                            {errors.voter_id && (
+                                <p className="mt-1 text-xs text-red-500">
+                                    {errors.voter_id}
+                                </p>
+                            )}
+                        </div>
+
                         <div className="relative">
                             <Mail className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Email address"
+                                placeholder="Email address (required if no Voter ID)"
+                                className={`w-full rounded-lg border ${
+                                    errors.email
+                                        ? 'border-red-500'
+                                        : 'border-[#e3e3e0]'
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
                                 onKeyDown={(e) =>
                                     e.key === 'Enter' && handleAddSingle()
                                 }
-                                className="w-full rounded-lg border border-[#e3e3e0] py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white"
                             />
+                            {errors.email && (
+                                <p className="mt-1 text-xs text-red-500">
+                                    {errors.email}
+                                </p>
+                            )}
                         </div>
+
+                        <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                            <div className="flex items-start gap-2">
+                                <svg
+                                    className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                                <div className="text-xs text-yellow-800 dark:text-yellow-300">
+                                    <p className="font-medium">Requirement:</p>
+                                    <p className="mt-1">
+                                        Either <strong>Email</strong> or{' '}
+                                        <strong>Voter ID</strong> must be
+                                        provided. Both can also be provided.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                            <div className="flex items-start gap-2">
+                                <svg
+                                    className="mt-0.5 h-4 w-4 text-blue-600 dark:text-blue-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                                <div className="text-xs text-blue-800 dark:text-blue-300">
+                                    <p className="font-medium">Voter Token</p>
+                                    <p className="mt-1">
+                                        A unique voter token will be
+                                        automatically generated and sent to the
+                                        voter's email address (if provided).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         <button
                             onClick={handleAddSingle}
-                            disabled={saving || !name.trim() || !email.trim()}
+                            disabled={saving || !name.trim()}
                             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
                         >
                             {saving ? (
@@ -296,9 +599,692 @@ function AddVoterModal({
                         />
                     </div>
                     <p className="text-xs text-gray-400 dark:text-gray-600">
-                        CSV must have <code className="font-mono">name</code>{' '}
-                        and <code className="font-mono">email</code> columns.
+                        CSV must have <code className="font-mono">name</code>,{' '}
+                        <code className="font-mono">voter_id</code> (optional),
+                        and <code className="font-mono">email</code> (optional)
+                        columns.
+                        <br />
+                        <span className="text-yellow-600 dark:text-yellow-500">
+                            Note:
+                        </span>{' '}
+                        Either <strong>voter_id</strong> or{' '}
+                        <strong>email</strong> must be provided for each row.
                     </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Delete Confirmation Modal (Fixed - Empty by default) ───────────────────
+function CustomDeleteConfirmationModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    itemName,
+    title,
+    message,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    itemName: string;
+    title: string;
+    message: string;
+}) {
+    const [confirmText, setConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
+
+    // Reset confirmText when modal opens or itemName changes
+    useEffect(() => {
+        if (isOpen) {
+            setConfirmText('');
+        }
+    }, [isOpen, itemName]);
+
+    if (!isOpen) return null;
+
+    const handleConfirm = async () => {
+        if (confirmText !== itemName) return;
+        setDeleting(true);
+        await onConfirm();
+        setDeleting(false);
+        onClose();
+        setConfirmText('');
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="relative z-10 w-full max-w-md animate-in rounded-xl bg-white shadow-xl duration-200 fade-in zoom-in dark:bg-[#161615]">
+                <div className="flex items-center justify-between border-b border-[#e3e3e0] px-6 py-4 dark:border-[#3E3E3A]">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                            <AlertCircle className="h-5 w-5 text-red-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                                {title}
+                            </h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                This action cannot be undone
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="p-6">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {message}
+                    </p>
+                    <div className="mt-4">
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                            Type{' '}
+                            <span className="font-bold text-red-600">
+                                {itemName}
+                            </span>{' '}
+                            to confirm:
+                        </p>
+                        <input
+                            type="text"
+                            value={confirmText}
+                            onChange={(e) => setConfirmText(e.target.value)}
+                            className="mt-2 w-full rounded-lg border border-[#e3e3e0] px-3 py-2 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white"
+                            placeholder={`Type "${itemName}" to confirm`}
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button
+                            onClick={onClose}
+                            className="rounded-lg border border-[#e3e3e0] px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleConfirm}
+                            disabled={confirmText !== itemName || deleting}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                        >
+                            {deleting ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Multi-Step Launch Confirmation Modal ────────────────────────────────────
+function LaunchConfirmationModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    election,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    election: Election;
+}) {
+    const [step, setStep] = useState(1);
+    const [isChecked, setIsChecked] = useState(false);
+    const [isLaunching, setIsLaunching] = useState(false);
+
+    if (!isOpen) return null;
+
+    // Validation checks
+    const hasBallots = election.ballots && election.ballots.length > 0;
+    const hasOptions = election.ballots?.some(
+        (ballot) => ballot.options && ballot.options.length > 0,
+    );
+    const hasVoters = election.voters && election.voters.length > 0;
+    const startDate = election.start_date
+        ? new Date(election.start_date)
+        : null;
+    const now = new Date();
+    const isStartDateInFuture = startDate && startDate > now;
+    const hasDefaultOptions = election.ballots?.some((ballot) =>
+        ballot.options?.some((option) => option.title === 'New Option'),
+    );
+    const hasEmptyOptions = election.ballots?.some(
+        (ballot) => ballot.options?.length === 0,
+    );
+
+    const canLaunch = hasBallots && hasOptions && hasVoters && !hasEmptyOptions;
+
+    const getWarnings = () => {
+        const warnings = [];
+        if (!hasBallots)
+            warnings.push({
+                type: 'error',
+                message: 'No ballots added to this election',
+                anchor: 'no-ballots',
+            });
+        if (hasBallots && !hasOptions)
+            warnings.push({
+                type: 'error',
+                message: 'Some ballots have no options',
+                anchor: 'ballots-no-options',
+            });
+        if (hasBallots && hasEmptyOptions)
+            warnings.push({
+                type: 'error',
+                message: 'Some ballots have empty options',
+                anchor: 'empty-ballot-options',
+            });
+        if (!hasVoters)
+            warnings.push({
+                type: 'error',
+                message: 'No voters added to this election',
+                anchor: 'no-voters',
+            });
+        if (hasDefaultOptions)
+            warnings.push({
+                type: 'warning',
+                message:
+                    'Some options have the default title "New Option". Consider renaming them.',
+                anchor: 'default-option-names',
+            });
+        if (isStartDateInFuture)
+            warnings.push({
+                type: 'info',
+                message:
+                    'Start date is in the future. The election will start automatically on the specified date.',
+                anchor: 'future-start-date',
+            });
+        return warnings;
+    };
+
+    const warnings = getWarnings();
+    const hasErrors = warnings.some((w) => w.type === 'error');
+    const errorCount = warnings.filter((w) => w.type === 'error').length;
+    const warningCount = warnings.filter((w) => w.type === 'warning').length;
+    const infoCount = warnings.filter((w) => w.type === 'info').length;
+
+    const handleNext = () => {
+        if (step === 1 && hasErrors) return;
+        setStep(step + 1);
+    };
+
+    const handleBack = () => {
+        setStep(step - 1);
+    };
+
+    const handleConfirm = () => {
+        if (!isChecked || hasErrors) return;
+        setIsLaunching(true);
+        onConfirm();
+    };
+
+    const resetModal = () => {
+        setStep(1);
+        setIsChecked(false);
+        setIsLaunching(false);
+    };
+
+    const handleClose = () => {
+        resetModal();
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={handleClose}
+            />
+            <div className="relative z-10 max-h-[90vh] w-full max-w-2xl animate-in overflow-y-auto rounded-2xl bg-white shadow-2xl duration-200 fade-in zoom-in dark:bg-[#161615]">
+                {/* Header with Steps */}
+                <div className="sticky top-0 z-10 border-b border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                                <Rocket className="h-5 w-5 text-red-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                                    Launch Election
+                                </h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Step {step} of 3
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleClose}
+                            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    {/* Progress Steps */}
+                    <div className="mt-4 flex items-center justify-between">
+                        {[
+                            {
+                                step: 1,
+                                label: 'Review Issues',
+                                icon: AlertCircle,
+                            },
+                            { step: 2, label: 'Settings', icon: Settings },
+                            { step: 3, label: 'Confirm', icon: CheckCircle },
+                        ].map((s) => {
+                            const Icon = s.icon;
+                            const isActive = step === s.step;
+                            const isCompleted = step > s.step;
+                            return (
+                                <div
+                                    key={s.step}
+                                    className="flex flex-1 items-center"
+                                >
+                                    <div className="flex flex-col items-center">
+                                        <div
+                                            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all ${
+                                                isActive
+                                                    ? 'scale-110 bg-red-600 text-white'
+                                                    : isCompleted
+                                                      ? 'bg-green-600 text-white'
+                                                      : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            {isCompleted ? (
+                                                <CheckCircle className="h-4 w-4" />
+                                            ) : (
+                                                s.step
+                                            )}
+                                        </div>
+                                        <span
+                                            className={`mt-1 text-xs ${isActive ? 'font-medium text-red-600' : 'text-gray-500'}`}
+                                        >
+                                            {s.label}
+                                        </span>
+                                    </div>
+                                    {s.step < 3 && (
+                                        <div
+                                            className={`mx-2 h-px flex-1 ${step > s.step ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-700'}`}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Step 1: Review Issues */}
+                {step === 1 && (
+                    <div className="space-y-6 p-6">
+                        <div className="rounded-lg border border-[#e3e3e0] bg-gray-50 p-4 dark:border-[#3E3E3A] dark:bg-gray-900/20">
+                            <div className="mb-3 flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-red-600" />
+                                <h3 className="font-semibold text-[#1b1b18] dark:text-white">
+                                    Election Assistant
+                                </h3>
+                            </div>
+                            <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+                                This scan resulted in{' '}
+                                <strong className="text-red-600">
+                                    {warnings.length}
+                                </strong>{' '}
+                                item(s) that need attention:
+                            </p>
+                            <div className="space-y-2">
+                                {warnings.map((warning, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`flex items-start justify-between rounded-lg p-2 text-sm ${
+                                            warning.type === 'error'
+                                                ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                                : warning.type === 'warning'
+                                                  ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                                  : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                        }`}
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            {warning.type === 'error' && (
+                                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                            )}
+                                            {warning.type === 'warning' && (
+                                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                            )}
+                                            {warning.type === 'info' && (
+                                                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                                            )}
+                                            <span>{warning.message}</span>
+                                        </div>
+                                        {warning.anchor && (
+                                            <a
+                                                href={getHelpLink(
+                                                    warning.anchor,
+                                                )}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="ml-4 inline-flex items-center gap-1 text-xs whitespace-nowrap text-red-600 hover:underline"
+                                            >
+                                                Learn How to Fix
+                                                <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Summary Cards */}
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-lg border border-[#e3e3e0] p-3 text-center dark:border-[#3E3E3A]">
+                                <div className="text-2xl font-bold text-red-600">
+                                    {errorCount}
+                                </div>
+                                <p className="text-xs text-gray-500">Errors</p>
+                            </div>
+                            <div className="rounded-lg border border-[#e3e3e0] p-3 text-center dark:border-[#3E3E3A]">
+                                <div className="text-2xl font-bold text-yellow-600">
+                                    {warningCount}
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                    Warnings
+                                </p>
+                            </div>
+                            <div className="rounded-lg border border-[#e3e3e0] p-3 text-center dark:border-[#3E3E3A]">
+                                <div className="text-2xl font-bold text-blue-600">
+                                    {infoCount}
+                                </div>
+                                <p className="text-xs text-gray-500">Info</p>
+                            </div>
+                        </div>
+
+                        {hasErrors && (
+                            <div className="rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
+                                <p className="text-sm text-red-700 dark:text-red-400">
+                                    ⚠️ Please resolve all errors before
+                                    proceeding.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Step 2: Settings & Details */}
+                {step === 2 && (
+                    <div className="space-y-4 p-6">
+                        {/* Settings Section */}
+                        <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
+                            <div className="flex items-center gap-2 border-b border-[#e3e3e0] px-4 py-3 dark:border-[#3E3E3A]">
+                                <Settings className="h-4 w-4 text-gray-500" />
+                                <h3 className="font-medium text-[#1b1b18] dark:text-white">
+                                    Election Settings
+                                </h3>
+                            </div>
+                            <div className="space-y-3 p-4">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                        Start Date:
+                                    </span>
+                                    <span className="font-medium">
+                                        {election.start_date
+                                            ? new Date(
+                                                  election.start_date,
+                                              ).toLocaleString()
+                                            : 'Not set'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                        End Date:
+                                    </span>
+                                    <span className="font-medium">
+                                        {election.end_date
+                                            ? new Date(
+                                                  election.end_date,
+                                              ).toLocaleString()
+                                            : 'Not set'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                        Leaderboard:
+                                    </span>
+                                    <span
+                                        className={`font-medium ${election.leaderboard_on ? 'text-green-600' : 'text-red-600'}`}
+                                    >
+                                        {election.leaderboard_on
+                                            ? 'Public'
+                                            : 'Hidden'}
+                                    </span>
+                                </div>
+                                {isStartDateInFuture && (
+                                    <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-2 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                                        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <span>
+                                            The election will start
+                                            automatically on the specified date.
+                                        </span>
+                                        <a
+                                            href={getHelpLink(
+                                                'future-start-date',
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="ml-auto text-xs text-red-600 hover:underline"
+                                        >
+                                            Learn More
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Voters Section */}
+                        <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
+                            <div className="flex items-center gap-2 border-b border-[#e3e3e0] px-4 py-3 dark:border-[#3E3E3A]">
+                                <Users className="h-4 w-4 text-gray-500" />
+                                <h3 className="font-medium text-[#1b1b18] dark:text-white">
+                                    Voters
+                                </h3>
+                            </div>
+                            <div className="p-4">
+                                <div className="flex items-center gap-2">
+                                    {hasVoters ? (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                        <AlertCircle className="h-4 w-4 text-red-600" />
+                                    )}
+                                    <span className="text-sm">
+                                        {election.voters?.length || 0} voter(s)
+                                        added to this election
+                                    </span>
+                                    {!hasVoters && (
+                                        <a
+                                            href={getHelpLink('no-voters')}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="ml-auto text-xs text-red-600 hover:underline"
+                                        >
+                                            Learn How to Fix →
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Ballot Section */}
+                        <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
+                            <div className="flex items-center gap-2 border-b border-[#e3e3e0] px-4 py-3 dark:border-[#3E3E3A]">
+                                <FileText className="h-4 w-4 text-gray-500" />
+                                <h3 className="font-medium text-[#1b1b18] dark:text-white">
+                                    Ballots
+                                </h3>
+                            </div>
+                            <div className="space-y-2 p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        {hasBallots ? (
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                            <AlertCircle className="h-4 w-4 text-red-600" />
+                                        )}
+                                        <span className="text-sm">
+                                            {election.ballots?.length || 0}{' '}
+                                            ballot(s) added
+                                        </span>
+                                    </div>
+                                    {!hasBallots && (
+                                        <a
+                                            href={getHelpLink('no-ballots')}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-red-600 hover:underline"
+                                        >
+                                            Learn How to Fix →
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        {hasOptions ? (
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                            <AlertCircle className="h-4 w-4 text-red-600" />
+                                        )}
+                                        <span className="text-sm">
+                                            All ballots have options
+                                        </span>
+                                    </div>
+                                    {!hasOptions && (
+                                        <a
+                                            href={getHelpLink(
+                                                'ballots-no-options',
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-red-600 hover:underline"
+                                        >
+                                            Learn How to Fix →
+                                        </a>
+                                    )}
+                                </div>
+                                {hasDefaultOptions && (
+                                    <div className="flex items-center justify-between border-t border-[#e3e3e0] pt-2 dark:border-[#3E3E3A]">
+                                        <div className="flex items-center gap-2">
+                                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                            <span className="text-sm">
+                                                Default option names detected
+                                            </span>
+                                        </div>
+                                        <a
+                                            href={getHelpLink(
+                                                'default-option-names',
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-red-600 hover:underline"
+                                        >
+                                            Learn How to Fix →
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Step 3: Confirm Launch */}
+                {step === 3 && (
+                    <div className="space-y-6 p-6">
+                        <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                            <div className="flex items-start gap-3">
+                                <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
+                                <div>
+                                    <p className="font-medium text-green-800 dark:text-green-400">
+                                        Ready to Launch!
+                                    </p>
+                                    <p className="mt-1 text-sm text-green-700 dark:text-green-500">
+                                        Once launched, voters will be able to
+                                        access the election and cast their
+                                        votes. This action cannot be undone.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
+                            <div className="flex items-center gap-3 p-4">
+                                <input
+                                    type="checkbox"
+                                    id="confirmLaunch"
+                                    checked={isChecked}
+                                    onChange={(e) =>
+                                        setIsChecked(e.target.checked)
+                                    }
+                                    className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                                />
+                                <label
+                                    htmlFor="confirmLaunch"
+                                    className="text-sm text-gray-700 dark:text-gray-300"
+                                >
+                                    I confirm that I have reviewed all settings
+                                    and want to launch this election.
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="sticky bottom-0 flex justify-between gap-3 border-t border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                    {step > 1 ? (
+                        <button
+                            onClick={handleBack}
+                            className="inline-flex items-center gap-2 rounded-lg border border-[#e3e3e0] px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Back
+                        </button>
+                    ) : (
+                        <div />
+                    )}
+
+                    {step < 3 ? (
+                        <button
+                            onClick={handleNext}
+                            disabled={step === 1 && hasErrors}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleConfirm}
+                            disabled={!isChecked || hasErrors || isLaunching}
+                            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-green-700 disabled:opacity-50"
+                        >
+                            {isLaunching ? (
+                                <>
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    Launching...
+                                </>
+                            ) : (
+                                <>
+                                    <Rocket className="h-4 w-4" />
+                                    Launch Election
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -313,6 +1299,8 @@ export default function ElectionShow({ election }: Props) {
     const [isOptionModalOpen, setIsOptionModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isAddVoterModalOpen, setIsAddVoterModalOpen] = useState(false);
+    const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
+    const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
     const [selectedBallot, setSelectedBallot] = useState<Ballot | null>(null);
     const [ballotToDelete, setBallotToDelete] = useState<Ballot | null>(null);
     const [optionToDelete, setOptionToDelete] = useState<{
@@ -320,6 +1308,19 @@ export default function ElectionShow({ election }: Props) {
         ballot: Ballot;
     } | null>(null);
     const [voterToDelete, setVoterToDelete] = useState<Voter | null>(null);
+    const [deleteModalConfig, setDeleteModalConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        itemName: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        itemName: '',
+        onConfirm: () => {},
+    });
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Eye, count: null },
@@ -351,42 +1352,81 @@ export default function ElectionShow({ election }: Props) {
     };
 
     const handleDeleteBallotClick = (ballot: Ballot) => {
+        setDeleteModalConfig({
+            isOpen: true,
+            title: 'Delete Ballot Question',
+            message:
+                'This action cannot be undone. This will permanently delete the ballot question and all its options.',
+            itemName: ballot.title,
+            onConfirm: () => {
+                router.delete(`/ballots/${ballot.id}`);
+                setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }));
+                setBallotToDelete(null);
+            },
+        });
         setBallotToDelete(ballot);
         setOptionToDelete(null);
         setVoterToDelete(null);
-        setIsDeleteModalOpen(true);
     };
 
     const handleDeleteOptionClick = (option: Option, ballot: Ballot) => {
+        setDeleteModalConfig({
+            isOpen: true,
+            title: 'Remove Option',
+            message:
+                'This will permanently remove this option from the ballot. Voters will no longer see it.',
+            itemName: option.title,
+            onConfirm: () => {
+                router.delete(`/options/${option.id}`);
+                setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }));
+                setOptionToDelete(null);
+            },
+        });
         setOptionToDelete({ option, ballot });
         setBallotToDelete(null);
         setVoterToDelete(null);
-        setIsDeleteModalOpen(true);
     };
 
     const handleDeleteVoterClick = (voter: Voter) => {
+        setDeleteModalConfig({
+            isOpen: true,
+            title: 'Remove Voter',
+            message:
+                'This will permanently remove this voter from the election. They will no longer be able to vote.',
+            itemName: voter.name,
+            onConfirm: () => {
+                router.delete(`/voters/${voter.id}`);
+                setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }));
+                setVoterToDelete(null);
+            },
+        });
         setVoterToDelete(voter);
         setBallotToDelete(null);
         setOptionToDelete(null);
-        setIsDeleteModalOpen(true);
     };
 
-    const handleConfirmDelete = () => {
-        if (ballotToDelete) {
-            router.delete(`/ballots/${ballotToDelete.id}`);
-        } else if (optionToDelete) {
-            router.delete(`/options/${optionToDelete.option.id}`);
-        } else if (voterToDelete) {
-            router.delete(`/voters/${voterToDelete.id}`);
-        }
-        setIsDeleteModalOpen(false);
+    const handleCloseDeleteModal = () => {
+        setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }));
         setBallotToDelete(null);
         setOptionToDelete(null);
         setVoterToDelete(null);
     };
 
+    const handleLaunch = () => {
+        router.post(
+            `/elections/${election.id}/launch`,
+            {},
+            {
+                onSuccess: () => {
+                    setIsLaunchModalOpen(false);
+                    router.reload();
+                },
+            },
+        );
+    };
+
     const electionUrl = `${window.location.origin}/vote/${election.identifier}`;
-    const shortUrl = `https://vote.voicesphere.com/e/${election.identifier.substring(0, 6)}`;
+    const leaderboardUrl = `${window.location.origin}/leaderboard/${election.identifier}`;
 
     const getStatusConfig = () => {
         const now = new Date();
@@ -485,7 +1525,7 @@ export default function ElectionShow({ election }: Props) {
                     </Link>
                 </div>
 
-                {/* Title + status */}
+                {/* Title + status + leaderboard settings */}
                 <div className="rounded-xl border border-[#e3e3e0] bg-white p-6 dark:border-[#3E3E3A] dark:bg-[#161615]">
                     <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                         <div>
@@ -498,11 +1538,29 @@ export default function ElectionShow({ election }: Props) {
                                 </p>
                             )}
                         </div>
-                        <div
-                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${statusConfig.color}`}
-                        >
-                            <StatusIcon className="h-3 w-3" />
-                            {statusConfig.label}
+                        <div className="flex items-center gap-3">
+                            <div
+                                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${statusConfig.color}`}
+                            >
+                                <StatusIcon className="h-3 w-3" />
+                                {statusConfig.label}
+                            </div>
+                            <button
+                                onClick={() => setIsLeaderboardModalOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-full border border-[#e3e3e0] px-3 py-1 text-sm font-medium transition-all hover:bg-gray-100 dark:border-[#3E3E3A] dark:hover:bg-gray-800"
+                                title="Leaderboard Settings"
+                            >
+                                {election.leaderboard_on ? (
+                                    <Globe className="h-3 w-3 text-green-600" />
+                                ) : (
+                                    <EyeOff className="h-3 w-3 text-red-600" />
+                                )}
+                                <span className="text-xs">
+                                    {election.leaderboard_on
+                                        ? 'Public'
+                                        : 'Hidden'}
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -574,7 +1632,7 @@ export default function ElectionShow({ election }: Props) {
                                     },
                                     {
                                         label: 'Votes Cast',
-                                        value: election.votes?.length || 0,
+                                        value: election.votes_count || 0,
                                         icon: BarChart3,
                                         bg: 'bg-purple-100 dark:bg-purple-900/30',
                                         color: 'text-purple-600',
@@ -651,7 +1709,10 @@ export default function ElectionShow({ election }: Props) {
                                 </h3>
                                 {[
                                     { label: 'Election URL', url: electionUrl },
-                                    { label: 'Short URL', url: shortUrl },
+                                    {
+                                        label: 'Leaderboard URL',
+                                        url: leaderboardUrl,
+                                    },
                                 ].map(({ label, url }) => (
                                     <div
                                         key={label}
@@ -733,8 +1794,6 @@ export default function ElectionShow({ election }: Props) {
                                                     key={ballot.id}
                                                     className="group overflow-hidden rounded-xl border border-[#e3e3e0] bg-white dark:border-[#3E3E3A] dark:bg-[#161615]"
                                                 >
-                                                    {' '}
-                                                    {/* Ballot header with subtle color */}
                                                     <div
                                                         className={`flex items-start justify-between px-5 py-4 ${colors.bg} border-b ${colors.border}`}
                                                     >
@@ -770,7 +1829,6 @@ export default function ElectionShow({ election }: Props) {
                                                             </span>
                                                         </div>
                                                         <div className="ml-3 flex items-center gap-1">
-                                                            {' '}
                                                             <button
                                                                 onClick={() =>
                                                                     handleManageOptions(
@@ -795,7 +1853,6 @@ export default function ElectionShow({ election }: Props) {
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    {/* Options / Candidates grid */}
                                                     <div className="p-5">
                                                         {ballot.options &&
                                                         ballot.options.length >
@@ -992,10 +2049,19 @@ export default function ElectionShow({ election }: Props) {
                                                     Name
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                                                    Voter ID
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                                                     Email
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                                                    Voter Token
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                                                     Status
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                                                    Invited
                                                 </th>
                                                 <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                                                     Action
@@ -1021,8 +2087,28 @@ export default function ElectionShow({ election }: Props) {
                                                             </span>
                                                         </div>
                                                     </td>
+                                                    <td className="px-4 py-3">
+                                                        {voter.voter_id ? (
+                                                            <code className="rounded bg-gray-100 px-2 py-1 text-xs dark:bg-gray-800">
+                                                                {voter.voter_id}
+                                                            </code>
+                                                        ) : (
+                                                            <span className="text-gray-400">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                                        {voter.email}
+                                                        {voter.email || (
+                                                            <span className="text-gray-400">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <code className="rounded bg-gray-100 px-2 py-1 text-xs dark:bg-gray-800">
+                                                            {voter.voter_token}
+                                                        </code>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         {voter.has_voted ? (
@@ -1036,6 +2122,13 @@ export default function ElectionShow({ election }: Props) {
                                                                 Pending
                                                             </span>
                                                         )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                        {voter.invited_at
+                                                            ? new Date(
+                                                                  voter.invited_at,
+                                                              ).toLocaleDateString()
+                                                            : '-'}
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <button
@@ -1095,60 +2188,159 @@ export default function ElectionShow({ election }: Props) {
                     )}
 
                     {/* ── Launch ── */}
-                    {activeTab === 'launch' && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
-                                Launch Election
-                            </h3>
-                            {election.status === 'draft' ? (
-                                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
-                                    <div className="flex items-start gap-3">
-                                        <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
-                                        <div>
-                                            <p className="font-medium text-yellow-800 dark:text-yellow-400">
-                                                Ready to launch?
-                                            </p>
-                                            <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                                                Once launched, voters will be
-                                                able to access the election and
-                                                cast their votes.
-                                            </p>
-                                            <button
-                                                onClick={() =>
-                                                    router.post(
-                                                        `/elections/${election.id}/publish`,
-                                                    )
-                                                }
-                                                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                                            >
-                                                <Rocket className="h-4 w-4" />
-                                                Launch Election
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20">
-                                    <div className="flex items-start gap-3">
-                                        <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
-                                        <div>
-                                            <p className="font-medium text-green-800 dark:text-green-400">
-                                                Election is {election.status}
-                                            </p>
-                                            <p className="mt-1 text-sm text-green-700 dark:text-green-500">
-                                                This election has already been
-                                                launched and is{' '}
-                                                {election.status === 'active'
-                                                    ? 'ongoing'
-                                                    : election.status}
-                                                .
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+{activeTab === 'launch' && (
+    <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+            Launch Election
+        </h3>
+        {election.status === 'draft' ? (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
+                <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
+                    <div>
+                        <p className="font-medium text-yellow-800 dark:text-yellow-400">
+                            Ready to launch?
+                        </p>
+                        <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
+                            Once launched, voters will be able to access the election and cast their votes.
+                        </p>
+                        <button
+                            onClick={() => setIsLaunchModalOpen(true)}
+                            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+                        >
+                            <Rocket className="h-4 w-4" />
+                            Review & Launch
+                        </button>
+                    </div>
+                </div>
+            </div>
+        ) : election.status === 'active' ? (
+            <div className="space-y-4">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20">
+                    <div className="flex items-start gap-3">
+                        <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
+                        <div>
+                            <p className="font-medium text-green-800 dark:text-green-400">
+                                Election is active
+                            </p>
+                            <p className="mt-1 text-sm text-green-700 dark:text-green-500">
+                                Voters can currently access the election and cast their votes.
+                            </p>
                         </div>
-                    )}
+                    </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Pause */}
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-5 dark:border-yellow-800 dark:bg-yellow-900/20">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
+                            <div>
+                                <p className="font-medium text-yellow-800 dark:text-yellow-400">Pause Election</p>
+                                <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
+                                    Temporarily stop voting. Voters won't be able to cast votes until you resume.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        if (confirm('Are you sure you want to pause this election?')) {
+                                            router.post(`/elections/${election.id}/pause`, {}, {
+                                                onSuccess: () => router.reload(),
+                                            });
+                                        }
+                                    }}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700"
+                                >
+                                    <Clock className="h-4 w-4" />
+                                    Pause Election
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* End */}
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+                            <div>
+                                <p className="font-medium text-red-800 dark:text-red-400">End Election</p>
+                                <p className="mt-1 text-sm text-red-700 dark:text-red-500">
+                                    Permanently close voting. This cannot be undone — no more votes will be accepted.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
+                                            router.post(`/elections/${election.id}/end`, {}, {
+                                                onSuccess: () => router.reload(),
+                                            });
+                                        }
+                                    }}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                                >
+                                    <CheckCircle className="h-4 w-4" />
+                                    End Election
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ) : election.status === 'paused' ? (
+            <div className="space-y-4">
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
+                        <div>
+                            <p className="font-medium text-yellow-800 dark:text-yellow-400">Election is paused</p>
+                            <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
+                                Voting is temporarily suspended. Resume to allow voters to continue casting votes.
+                            </p>
+                            <div className="mt-4 flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        router.post(`/elections/${election.id}/resume`, {}, {
+                                            onSuccess: () => router.reload(),
+                                        });
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+                                >
+                                    <Rocket className="h-4 w-4" />
+                                    Resume Election
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
+                                            router.post(`/elections/${election.id}/end`, {}, {
+                                                onSuccess: () => router.reload(),
+                                            });
+                                        }
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                                >
+                                    <CheckCircle className="h-4 w-4" />
+                                    End Election
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ) : (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/20">
+                <div className="flex items-start gap-3">
+                    <CheckCircle className="mt-0.5 h-5 w-5 text-gray-500" />
+                    <div>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">
+                            Election is {election.status}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            This election has ended and is now {election.status}.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+)}
                 </div>
             </div>
 
@@ -1175,35 +2367,26 @@ export default function ElectionShow({ election }: Props) {
                 electionId={election.id}
             />
 
-            <DeleteConfirmationModal
-                isOpen={isDeleteModalOpen}
-                onClose={() => {
-                    setIsDeleteModalOpen(false);
-                    setBallotToDelete(null);
-                    setOptionToDelete(null);
-                    setVoterToDelete(null);
-                }}
-                onConfirm={handleConfirmDelete}
-                title={
-                    ballotToDelete
-                        ? 'Delete Ballot Question'
-                        : optionToDelete
-                          ? 'Remove Option'
-                          : 'Remove Voter'
-                }
-                message={
-                    ballotToDelete
-                        ? 'This action cannot be undone. This will permanently delete the ballot question and all its options.'
-                        : optionToDelete
-                          ? 'This will permanently remove this option from the ballot. Voters will no longer see it.'
-                          : 'This will permanently remove this voter from the election. They will no longer be able to vote.'
-                }
-                itemName={
-                    ballotToDelete?.title ||
-                    optionToDelete?.option.title ||
-                    voterToDelete?.name ||
-                    ''
-                }
+            <LeaderboardSettingsModal
+                isOpen={isLeaderboardModalOpen}
+                onClose={() => setIsLeaderboardModalOpen(false)}
+                election={election}
+            />
+
+            <LaunchConfirmationModal
+                isOpen={isLaunchModalOpen}
+                onClose={() => setIsLaunchModalOpen(false)}
+                onConfirm={handleLaunch}
+                election={election}
+            />
+
+            <CustomDeleteConfirmationModal
+                isOpen={deleteModalConfig.isOpen}
+                onClose={handleCloseDeleteModal}
+                onConfirm={deleteModalConfig.onConfirm}
+                title={deleteModalConfig.title}
+                message={deleteModalConfig.message}
+                itemName={deleteModalConfig.itemName}
             />
         </AdminLayout>
     );

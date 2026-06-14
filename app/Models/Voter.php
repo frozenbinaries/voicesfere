@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 
-#[Fillable(['name', 'election_id', 'email','voter_token', 'has_voted', 'invited_at', 'voted_at'])]
+#[Fillable(['name', 'election_id', 'email','voter_id','voter_token', 'has_voted', 'invited_at', 'voted_at'])]
 class Voter extends Model
 {
     public function election()
