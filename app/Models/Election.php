@@ -56,6 +56,11 @@ class Election extends Model
         return $this->status;
     }
 
+
+    public function subscription(){
+        return $this->hasOne(Subscription::class);
+    }
+
     public function candidates()
     {
         return $this->hasManyThrough(Option::class, Ballot::class, 'election_id', 'ballot_id');

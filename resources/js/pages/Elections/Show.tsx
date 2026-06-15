@@ -30,6 +30,10 @@ import {
     ChevronRight,
     ChevronLeft,
     ExternalLink,
+    CreditCard,
+    DollarSign,
+    Shield,
+    Crown,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import CreateBallotModal from '@/components/CreateBallotModal';
@@ -73,6 +77,26 @@ interface Voter {
     voted_at?: string | null;
 }
 
+interface Subscription {
+    id: number;
+    plan_id: number;
+    status: 'active' | 'expired' | 'cancelled';
+    starts_at: string;
+    ends_at: string;
+    plan?: Plan;
+}
+
+interface Plan {
+    id: number;
+    name: string;
+    price: string;
+    currency: string;
+    min_voters: number;
+    max_voters: number;
+    description: string;
+    status: string;
+}
+
 interface Election {
     id: number;
     title: string;
@@ -89,10 +113,169 @@ interface Election {
     ballots?: Ballot[];
     voters?: Voter[];
     votes_count?: number;
+    subscription?: Subscription | null;
 }
 
 interface Props {
     election: Election;
+    plans: Plan[];
+}
+
+const formatPrice = (price: string, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(parseFloat(price));
+};
+
+// ─── Subscription Modal (Popup) ──────────────────────────────────────────────
+function SubscriptionModal({ isOpen, onClose, plans, currentPlan, voterCount, onSubscribe }: {
+    isOpen: boolean;
+    onClose: () => void;
+    plans: Plan[];
+    currentPlan: Plan | null;
+    voterCount: number;
+    onSubscribe: (planId: number) => void;
+}) {
+    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [subscribing, setSubscribing] = useState(false);
+
+    if (!isOpen) return null;
+
+    // Find the recommended plan based on voter count
+    const recommendedPlan = plans.find(plan => plan.max_voters >= voterCount && plan.min_voters <= voterCount);
+
+    const handleSubscribe = () => {
+        if (!selectedPlan) return;
+        setSubscribing(true);
+        onSubscribe(selectedPlan.id);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative z-10 max-h-[90vh] w-full max-w-4xl animate-in overflow-y-auto rounded-2xl bg-white shadow-2xl duration-200 fade-in zoom-in dark:bg-[#161615]">
+                <div className="sticky top-0 z-10 border-b border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                <CreditCard className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                                    {currentPlan ? 'Upgrade Subscription' : 'Choose a Subscription Plan'}
+                                </h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {voterCount} eligible voters
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-6">
+                    {recommendedPlan && (
+                        <div className="mb-4 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                            <p className="text-sm text-blue-800 dark:text-blue-400">
+                                💡 Recommended for {voterCount} voters: <strong>{recommendedPlan.name}</strong>
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {plans.filter(plan => plan.status === 'active').map((plan) => {
+                            const isCurrent = currentPlan?.id === plan.id;
+                            const isRecommended = recommendedPlan?.id === plan.id;
+                            const isEligible = plan.min_voters <= voterCount && plan.max_voters >= voterCount;
+
+                            return (
+                                <div
+                                    key={plan.id}
+                                    className={`relative rounded-lg border-2 p-4 transition-all ${
+                                        selectedPlan?.id === plan.id
+                                            ? 'border-blue-600 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20'
+                                            : isCurrent
+                                            ? 'border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
+                                            : 'border-gray-200 hover:border-blue-300 dark:border-gray-700 dark:hover:border-blue-700'
+                                    } ${!isEligible && !isCurrent ? 'opacity-60' : 'cursor-pointer'}`}
+                                    onClick={() => (isEligible || isCurrent) && !isCurrent && setSelectedPlan(plan)}
+                                >
+                                    {isCurrent && (
+                                        <div className="absolute -top-2 right-2 rounded-full bg-green-600 px-2 py-0.5 text-xs text-white">
+                                            Current
+                                        </div>
+                                    )}
+                                    {isRecommended && !isCurrent && (
+                                        <div className="absolute -top-2 right-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
+                                            Recommended
+                                        </div>
+                                    )}
+
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{plan.name}</h3>
+                                    <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                        {formatPrice(plan.price, plan.currency)}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">one-time payment</p>
+
+                                    <div className="mt-3 space-y-2">
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <Users className="h-4 w-4 text-gray-400" />
+                                            <span className="text-gray-600 dark:text-gray-400">
+                                                {plan.min_voters.toLocaleString()} - {plan.max_voters.toLocaleString()} voters
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {!isEligible && !isCurrent && (
+                                        <p className="mt-3 text-xs text-red-500">
+                                            ⚠️ Not suitable for {voterCount} voters
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="sticky bottom-0 flex justify-end gap-3 border-t border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg border border-[#e3e3e0] px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                        Cancel
+                    </button>
+                    {selectedPlan && (
+                        <button
+                            onClick={handleSubscribe}
+                            disabled={subscribing}
+                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {subscribing ? (
+                                <>
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <CreditCard className="h-4 w-4" />
+                                    Subscribe to {selectedPlan.name}
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 }
 
 // Ballot type colors for headers
@@ -616,7 +799,7 @@ function AddVoterModal({
     );
 }
 
-// ─── Delete Confirmation Modal (Fixed - Empty by default) ───────────────────
+// ─── Delete Confirmation Modal ───────────────────────────────────
 function CustomDeleteConfirmationModal({
     isOpen,
     onClose,
@@ -635,7 +818,6 @@ function CustomDeleteConfirmationModal({
     const [confirmText, setConfirmText] = useState('');
     const [deleting, setDeleting] = useState(false);
 
-    // Reset confirmText when modal opens or itemName changes
     useEffect(() => {
         if (isOpen) {
             setConfirmText('');
@@ -1292,7 +1474,7 @@ function LaunchConfirmationModal({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function ElectionShow({ election }: Props) {
+export default function ElectionShow({ election, plans }: Props) {
     const [activeTab, setActiveTab] = useState('overview');
     const [copied, setCopied] = useState(false);
     const [isBallotModalOpen, setIsBallotModalOpen] = useState(false);
@@ -1301,6 +1483,7 @@ export default function ElectionShow({ election }: Props) {
     const [isAddVoterModalOpen, setIsAddVoterModalOpen] = useState(false);
     const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
     const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
+    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
     const [selectedBallot, setSelectedBallot] = useState<Ballot | null>(null);
     const [ballotToDelete, setBallotToDelete] = useState<Ballot | null>(null);
     const [optionToDelete, setOptionToDelete] = useState<{
@@ -1321,6 +1504,13 @@ export default function ElectionShow({ election }: Props) {
         itemName: '',
         onConfirm: () => {},
     });
+
+    const voterCount = election.voters?.length || 0;
+
+    // Find current plan from subscription
+    const currentPlan = election.subscription?.plan || null;
+    const hasValidSubscription = election.subscription?.status === 'active' &&
+        new Date(election.subscription.ends_at) > new Date();
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Eye, count: null },
@@ -1410,6 +1600,17 @@ export default function ElectionShow({ election }: Props) {
         setBallotToDelete(null);
         setOptionToDelete(null);
         setVoterToDelete(null);
+    };
+
+    const handleSubscribe = (planId: number) => {
+        router.post(`/elections/${election.id}/subscribe`, {
+            plan_id: planId
+        }, {
+            onSuccess: () => {
+                setIsSubscriptionModalOpen(false);
+                router.reload();
+            },
+        });
     };
 
     const handleLaunch = () => {
@@ -1565,6 +1766,58 @@ export default function ElectionShow({ election }: Props) {
                     </div>
                 </div>
 
+                {/* Current Plan Badge - Always visible */}
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/20">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-3">
+                            {currentPlan ? (
+                                <>
+                                    {hasValidSubscription ? (
+                                        <Shield className="h-5 w-5 text-green-600" />
+                                    ) : (
+                                        <AlertCircle className="h-5 w-5 text-yellow-600" />
+                                    )}
+                                    <div>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">Current Plan</p>
+                                        <p className="font-semibold text-gray-900 dark:text-white">
+                                            {currentPlan.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            {formatPrice(currentPlan.price, currentPlan.currency)} • {currentPlan.min_voters}-{currentPlan.max_voters} voters
+                                        </p>
+                                        {hasValidSubscription && election.subscription && (
+                                            <p className="text-xs text-green-600">
+                                                Active until {new Date(election.subscription.ends_at).toLocaleDateString()}
+                                            </p>
+                                        )}
+                                        {!hasValidSubscription && election.subscription && (
+                                            <p className="text-xs text-red-500">
+                                                Expired
+                                            </p>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <Crown className="h-5 w-5 text-yellow-600" />
+                                    <div>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">Current Plan</p>
+                                        <p className="font-semibold text-gray-900 dark:text-white">FREE</p>
+                                        <p className="text-xs text-gray-500">Up to 20 voters • No payment required</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setIsSubscriptionModalOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
+                        >
+                            <CreditCard className="h-4 w-4" />
+                            {currentPlan ? 'Upgrade Plan' : 'Subscribe'}
+                        </button>
+                    </div>
+                </div>
+
                 {/* Tabs */}
                 <div className="border-b border-[#e3e3e0] dark:border-[#3E3E3A]">
                     <nav className="flex gap-1 overflow-x-auto">
@@ -1602,7 +1855,7 @@ export default function ElectionShow({ election }: Props) {
                     </nav>
                 </div>
 
-                {/* Tab content */}
+                {/* Tab content - Keep original */}
                 <div className="rounded-xl border border-[#e3e3e0] bg-white p-6 dark:border-[#3E3E3A] dark:bg-[#161615]">
                     {/* ── Overview ── */}
                     {activeTab === 'overview' && (
@@ -2188,159 +2441,159 @@ export default function ElectionShow({ election }: Props) {
                     )}
 
                     {/* ── Launch ── */}
-{activeTab === 'launch' && (
-    <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
-            Launch Election
-        </h3>
-        {election.status === 'draft' ? (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
-                <div className="flex items-start gap-3">
-                    <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
-                    <div>
-                        <p className="font-medium text-yellow-800 dark:text-yellow-400">
-                            Ready to launch?
-                        </p>
-                        <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                            Once launched, voters will be able to access the election and cast their votes.
-                        </p>
-                        <button
-                            onClick={() => setIsLaunchModalOpen(true)}
-                            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                        >
-                            <Rocket className="h-4 w-4" />
-                            Review & Launch
-                        </button>
-                    </div>
-                </div>
-            </div>
-        ) : election.status === 'active' ? (
-            <div className="space-y-4">
-                <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20">
-                    <div className="flex items-start gap-3">
-                        <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
-                        <div>
-                            <p className="font-medium text-green-800 dark:text-green-400">
-                                Election is active
-                            </p>
-                            <p className="mt-1 text-sm text-green-700 dark:text-green-500">
-                                Voters can currently access the election and cast their votes.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                    {activeTab === 'launch' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                                Launch Election
+                            </h3>
+                            {election.status === 'draft' ? (
+                                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
+                                    <div className="flex items-start gap-3">
+                                        <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
+                                        <div>
+                                            <p className="font-medium text-yellow-800 dark:text-yellow-400">
+                                                Ready to launch?
+                                            </p>
+                                            <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
+                                                Once launched, voters will be able to access the election and cast their votes.
+                                            </p>
+                                            <button
+                                                onClick={() => setIsLaunchModalOpen(true)}
+                                                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+                                            >
+                                                <Rocket className="h-4 w-4" />
+                                                Review & Launch
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : election.status === 'active' ? (
+                                <div className="space-y-4">
+                                    <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20">
+                                        <div className="flex items-start gap-3">
+                                            <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
+                                            <div>
+                                                <p className="font-medium text-green-800 dark:text-green-400">
+                                                    Election is active
+                                                </p>
+                                                <p className="mt-1 text-sm text-green-700 dark:text-green-500">
+                                                    Voters can currently access the election and cast their votes.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                    {/* Pause */}
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-5 dark:border-yellow-800 dark:bg-yellow-900/20">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
-                            <div>
-                                <p className="font-medium text-yellow-800 dark:text-yellow-400">Pause Election</p>
-                                <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                                    Temporarily stop voting. Voters won't be able to cast votes until you resume.
-                                </p>
-                                <button
-                                    onClick={() => {
-                                        if (confirm('Are you sure you want to pause this election?')) {
-                                            router.post(`/elections/${election.id}/pause`, {}, {
-                                                onSuccess: () => router.reload(),
-                                            });
-                                        }
-                                    }}
-                                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700"
-                                >
-                                    <Clock className="h-4 w-4" />
-                                    Pause Election
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        {/* Pause */}
+                                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-5 dark:border-yellow-800 dark:bg-yellow-900/20">
+                                            <div className="flex items-start gap-3">
+                                                <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
+                                                <div>
+                                                    <p className="font-medium text-yellow-800 dark:text-yellow-400">Pause Election</p>
+                                                    <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
+                                                        Temporarily stop voting. Voters won't be able to cast votes until you resume.
+                                                    </p>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Are you sure you want to pause this election?')) {
+                                                                router.post(`/elections/${election.id}/pause`, {}, {
+                                                                    onSuccess: () => router.reload(),
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700"
+                                                    >
+                                                        <Clock className="h-4 w-4" />
+                                                        Pause Election
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                    {/* End */}
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
-                            <div>
-                                <p className="font-medium text-red-800 dark:text-red-400">End Election</p>
-                                <p className="mt-1 text-sm text-red-700 dark:text-red-500">
-                                    Permanently close voting. This cannot be undone — no more votes will be accepted.
-                                </p>
-                                <button
-                                    onClick={() => {
-                                        if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
-                                            router.post(`/elections/${election.id}/end`, {}, {
-                                                onSuccess: () => router.reload(),
-                                            });
-                                        }
-                                    }}
-                                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
-                                >
-                                    <CheckCircle className="h-4 w-4" />
-                                    End Election
-                                </button>
-                            </div>
+                                        {/* End */}
+                                        <div className="rounded-lg border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
+                                            <div className="flex items-start gap-3">
+                                                <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+                                                <div>
+                                                    <p className="font-medium text-red-800 dark:text-red-400">End Election</p>
+                                                    <p className="mt-1 text-sm text-red-700 dark:text-red-500">
+                                                        Permanently close voting. This cannot be undone — no more votes will be accepted.
+                                                    </p>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
+                                                                router.post(`/elections/${election.id}/end`, {}, {
+                                                                    onSuccess: () => router.reload(),
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                                                    >
+                                                        <CheckCircle className="h-4 w-4" />
+                                                        End Election
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : election.status === 'paused' ? (
+                                <div className="space-y-4">
+                                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
+                                            <div>
+                                                <p className="font-medium text-yellow-800 dark:text-yellow-400">Election is paused</p>
+                                                <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
+                                                    Voting is temporarily suspended. Resume to allow voters to continue casting votes.
+                                                </p>
+                                                <div className="mt-4 flex gap-3">
+                                                    <button
+                                                        onClick={() => {
+                                                            router.post(`/elections/${election.id}/resume`, {}, {
+                                                                onSuccess: () => router.reload(),
+                                                            });
+                                                        }}
+                                                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+                                                    >
+                                                        <Rocket className="h-4 w-4" />
+                                                        Resume Election
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
+                                                                router.post(`/elections/${election.id}/end`, {}, {
+                                                                    onSuccess: () => router.reload(),
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                                                    >
+                                                        <CheckCircle className="h-4 w-4" />
+                                                        End Election
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/20">
+                                    <div className="flex items-start gap-3">
+                                        <CheckCircle className="mt-0.5 h-5 w-5 text-gray-500" />
+                                        <div>
+                                            <p className="font-medium text-gray-700 dark:text-gray-300">
+                                                Election is {election.status}
+                                            </p>
+                                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                This election has ended and is now {election.status}.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                </div>
-            </div>
-        ) : election.status === 'paused' ? (
-            <div className="space-y-4">
-                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
-                        <div>
-                            <p className="font-medium text-yellow-800 dark:text-yellow-400">Election is paused</p>
-                            <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                                Voting is temporarily suspended. Resume to allow voters to continue casting votes.
-                            </p>
-                            <div className="mt-4 flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        router.post(`/elections/${election.id}/resume`, {}, {
-                                            onSuccess: () => router.reload(),
-                                        });
-                                    }}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
-                                >
-                                    <Rocket className="h-4 w-4" />
-                                    Resume Election
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
-                                            router.post(`/elections/${election.id}/end`, {}, {
-                                                onSuccess: () => router.reload(),
-                                            });
-                                        }
-                                    }}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
-                                >
-                                    <CheckCircle className="h-4 w-4" />
-                                    End Election
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        ) : (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/20">
-                <div className="flex items-start gap-3">
-                    <CheckCircle className="mt-0.5 h-5 w-5 text-gray-500" />
-                    <div>
-                        <p className="font-medium text-gray-700 dark:text-gray-300">
-                            Election is {election.status}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            This election has ended and is now {election.status}.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        )}
-    </div>
-)}
+                    )}
                 </div>
             </div>
 
@@ -2378,6 +2631,15 @@ export default function ElectionShow({ election }: Props) {
                 onClose={() => setIsLaunchModalOpen(false)}
                 onConfirm={handleLaunch}
                 election={election}
+            />
+
+            <SubscriptionModal
+                isOpen={isSubscriptionModalOpen}
+                onClose={() => setIsSubscriptionModalOpen(false)}
+                plans={plans}
+                currentPlan={currentPlan}
+                voterCount={voterCount}
+                onSubscribe={handleSubscribe}
             />
 
             <CustomDeleteConfirmationModal

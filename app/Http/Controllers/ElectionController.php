@@ -6,6 +6,7 @@ use App\Models\Election;
 use App\Models\Option;
 use App\Models\Voter;
 use App\Models\Ballot;
+use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -53,8 +54,9 @@ class ElectionController extends Controller
      */
     public function show(Election $election)
     {
-        $election = Election::with('candidates', 'ballots.options', 'voters', 'votes')->find($election->id);
-        return inertia('Elections/Show', ['election' => $election]);
+        $plans=Plan::all();
+        $election = Election::with('candidates', 'ballots.options', 'voters', 'votes','subscription.plan')->find($election->id);
+        return inertia('Elections/Show', ['election' => $election, 'plans'=>$plans]);
     }
 
     /**
