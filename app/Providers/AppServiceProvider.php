@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Election;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use App\Models\Voter;
+use App\Observers\ElectionObserver;
 use App\Observers\VoterObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         // Voter::observe(VoterObserver::class);
+        Election::observe(ElectionObserver::class);
     }
 
     /**

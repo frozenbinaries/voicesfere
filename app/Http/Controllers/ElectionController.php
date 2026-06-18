@@ -10,7 +10,8 @@ use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 class ElectionController extends Controller
 {
     /**
@@ -54,9 +55,9 @@ class ElectionController extends Controller
      */
     public function show(Election $election)
     {
-        $plans=Plan::all();
-        $election = Election::with('candidates', 'ballots.options', 'voters', 'votes','subscription.plan')->find($election->id);
-        return inertia('Elections/Show', ['election' => $election, 'plans'=>$plans]);
+        $plans = Plan::all();
+        $election = Election::with('candidates', 'ballots.options', 'voters', 'votes', 'subscription.plan')->find($election->id);
+        return inertia('Elections/Show', ['election' => $election, 'plans' => $plans]);
     }
 
     /**
@@ -156,6 +157,175 @@ class ElectionController extends Controller
         }
 
         return redirect()->back()->with('success', 'Voter added successfully!');
+    }
+
+
+
+    public function importVoters(Request $request, $electionId)
+    {
+        // Validate the request
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+        ]);
+
+        // Find the election
+        $election = Election::findOrFail($electionId);
+
+        // Read CSV file
+        $file = $request->file('file');
+        $handle = fopen($file->getRealPath(), 'r');
+
+        if (!$handle) {
+            return back()->withErrors([
+                'file' => 'Unable to read the CSV file. Please try again.'
+            ]);
+        }
+
+        // Get headers
+        $headers = fgetcsv($handle);
+
+        if (!$headers) {
+            fclose($handle);
+            return back()->withErrors([
+                'file' => 'The CSV file is empty or invalid.'
+            ]);
+        }
+
+        // Normalize headers to lowercase
+        $headers = array_map('strtolower', $headers);
+
+        // Validate required headers
+        $requiredHeaders = ['name'];
+        $missingHeaders = array_diff($requiredHeaders, $headers);
+
+        if (!empty($missingHeaders)) {
+            fclose($handle);
+            return back()->withErrors([
+                'file' => 'CSV must contain "name" column. Missing: ' . implode(', ', $missingHeaders)
+            ]);
+        }
+
+        // Map column indexes
+        $nameIndex = array_search('name', $headers);
+        $voterIdIndex = array_search('voter_id', $headers);
+        $emailIndex = array_search('email', $headers);
+
+        $imported = 0;
+        $errors = [];
+        $rowNumber = 1;
+
+        // Begin transaction
+        DB::beginTransaction();
+
+        try {
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNumber++;
+
+                // Skip empty rows
+                if (empty(array_filter($row, function ($value) {
+                    return !is_null($value) && trim($value) !== '';
+                }))) {
+                    continue;
+                }
+
+                // Extract data
+                $name = isset($row[$nameIndex]) ? trim($row[$nameIndex]) : null;
+                $voterId = ($voterIdIndex !== false && isset($row[$voterIdIndex]))
+                    ? trim($row[$voterIdIndex])
+                    : null;
+                $email = ($emailIndex !== false && isset($row[$emailIndex]))
+                    ? trim($row[$emailIndex])
+                    : null;
+
+                // Validate row data
+                if (empty($name)) {
+                    $errors[] = "Row {$rowNumber}: Name is required";
+                    continue;
+                }
+
+                if (empty($voterId) && empty($email)) {
+                    $errors[] = "Row {$rowNumber}: Either Voter ID or Email is required";
+                    continue;
+                }
+
+                if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = "Row {$rowNumber}: Invalid email format: {$email}";
+                    continue;
+                }
+
+                // Check for duplicates
+                if (!empty($voterId)) {
+                    $existingVoterId = Voter::where('election_id', $electionId)
+                        ->where('voter_id', $voterId)
+                        ->exists();
+
+                    if ($existingVoterId) {
+                        $errors[] = "Row {$rowNumber}: Voter ID '{$voterId}' already exists";
+                        continue;
+                    }
+                }
+
+                if (!empty($email)) {
+                    $existingEmail = Voter::where('election_id', $electionId)
+                        ->where('email', $email)
+                        ->exists();
+
+                    if ($existingEmail) {
+                        $errors[] = "Row {$rowNumber}: Email '{$email}' already exists";
+                        continue;
+                    }
+                }
+
+                // Create voter
+                try {
+                    Voter::create([
+                        'election_id' => $electionId,
+                        'name' => $name,
+                        'voter_id' => $voterId,
+                        'email' => $email,
+                        'voter_token' => $this->generateUniqueVoterKey(),
+                        'has_voted' => false,
+                        'invited_at' => null,
+                        'voted_at' => null,
+                    ]);
+                    $imported++;
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNumber}: Failed to create voter - " . $e->getMessage();
+                }
+            }
+
+            fclose($handle);
+
+            // If there were errors, rollback
+            if (!empty($errors)) {
+                DB::rollBack();
+
+                $errorMessage = "Imported 0 voters. Errors:\n" . implode("\n", array_slice($errors, 0, 10));
+                if (count($errors) > 10) {
+                    $errorMessage .= "\n... and " . (count($errors) - 10) . " more errors";
+                }
+
+                return back()->withErrors(['file' => $errorMessage]);
+            }
+
+            DB::commit();
+            return back()->with('success', "Successfully imported {$imported} voters!");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if (isset($handle) && is_resource($handle)) {
+                fclose($handle);
+            }
+
+            Log::error('Import error: ' . $e->getMessage(), [
+                'election_id' => $electionId,
+                'file' => $file->getClientOriginalName()
+            ]);
+
+            return back()->withErrors([
+                'file' => 'Failed to import voters: ' . $e->getMessage()
+            ]);
+        }
     }
 
 

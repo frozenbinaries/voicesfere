@@ -8,9 +8,16 @@ use App\Models\Vote;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use App\Services\FraudDetectionService;
 
 class VoteController extends Controller
 {
+    protected $fraudDetection;
+    public function __construct(FraudDetectionService $fraudDetection)
+    {
+        $this->fraudDetection = $fraudDetection;
+    }
+
     public function vote($electionIdentifier)
     {
         // Find the election by identifier
@@ -52,6 +59,8 @@ class VoteController extends Controller
 
     public function authenticate(Request $request, $electionIdentifier)
     {
+
+
         $election = Election::where('identifier', $electionIdentifier)->firstOrFail();
 
         $validated = $request->validate([
@@ -64,6 +73,7 @@ class VoteController extends Controller
             ->first();
 
         if (!$voter) {
+            $this->fraudDetection->recordInvalidToken($election, $request, $validated['voter_key']);
             return back()->withErrors([
                 'voter_key' => 'Invalid voter key. Please check and try again.'
             ]);
@@ -71,6 +81,7 @@ class VoteController extends Controller
 
         // Check if voter has already voted
         if ($voter->has_voted) {
+            $this->fraudDetection->recordDuplicateVote($voter, $election, $request);
             return inertia('Votes/AlreadyVoted', [
                 'election' => $election,
                 'voter' => $voter
@@ -86,10 +97,12 @@ class VoteController extends Controller
         return redirect()->route('elections.vote.home', $election->identifier);
     }
 
-    public function voteHome($electionIdentifier)
+    public function voteHome($electionIdentifier, Request $request)
     {
         // Check if voter is authenticated
         if (!session('voter_token')) {
+            $election = Election::where('identifier', $electionIdentifier)->firstOrFail();
+            $this->fraudDetection->recordBypassAttempt($election, $request);
             return redirect()->route('elections.vote', $electionIdentifier);
         }
 
@@ -149,13 +162,13 @@ class VoteController extends Controller
                 'ip_address'  => $request->ip(),
                 'user_agent'  => $request->userAgent(),
                 'metadata' => [
-                        'ip' => $request->ip(),
-                        'user_agent' => $request->userAgent(),
-                        'timestamp' => now()->toIso8601String(),
-                        'method' => $request->method(),
-                        'url' => $request->fullUrl(),
-                        'headers' => $request->headers->all(),
-                    ]
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'timestamp' => now()->toIso8601String(),
+                    'method' => $request->method(),
+                    'url' => $request->fullUrl(),
+                    'headers' => $request->headers->all(),
+                ]
             ];
 
             switch ($type) {

@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { dashboard, login } from '@/routes';
 import { register } from '@/routes';
 import { useState, useEffect } from 'react';
+import { Sun, Moon } from 'lucide-react';
 
 interface Option {
     id: number;
@@ -46,8 +47,36 @@ export default function Welcome({ allElections = [] }: Props) {
     const [wordIndex, setWordIndex] = useState(0);
     const [charIndex, setCharIndex] = useState(0);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
     const words = ['Reliable', 'Secure', 'Transparent', 'Fast', 'Accessible'];
+
+    // Load dark mode preference from localStorage or system preference
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            setIsDarkMode(true);
+            document.documentElement.classList.add('dark');
+        } else {
+            setIsDarkMode(false);
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
+    // Toggle dark mode
+    const toggleDarkMode = () => {
+        const newMode = !isDarkMode;
+        setIsDarkMode(newMode);
+        if (newMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    };
 
     // Filter active and upcoming elections
     const now = new Date();
@@ -122,6 +151,27 @@ export default function Welcome({ allElections = [] }: Props) {
 
             {/* Full screen gradient background */}
             <div className="min-h-screen bg-gradient-to-br from-[#FDFDFC] via-white to-red-50 dark:from-[#0a0a0a] dark:via-[#0f0f0f] dark:to-red-950/20">
+                {/* Dark Mode Toggle - Made more visible */}
+                <div className="fixed top-4 right-4 z-50">
+                    <button
+                        onClick={toggleDarkMode}
+                        className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-gray-700 shadow-lg transition-all hover:bg-gray-100 dark:bg-[#1f1f1f] dark:text-white dark:hover:bg-[#2d2d2d] border border-[#e3e3e0] dark:border-[#3E3E3A]"
+                        aria-label="Toggle dark mode"
+                    >
+                        {isDarkMode ? (
+                            <>
+                                <Sun className="h-4 w-4" />
+                                <span className="text-sm font-medium">Light</span>
+                            </>
+                        ) : (
+                            <>
+                                <Moon className="h-4 w-4" />
+                                <span className="text-sm font-medium">Dark</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+
                 {/* Navigation */}
                 <header className="sticky top-0 z-50 border-b border-[#e3e3e0] bg-white/80 backdrop-blur-md dark:border-[#3E3E3A] dark:bg-black/80">
                     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -167,10 +217,6 @@ export default function Welcome({ allElections = [] }: Props) {
                         {/* Left Content */}
                         <div className="space-y-8">
                             <div className="space-y-4">
-                                <div className="inline-flex items-center rounded-full border border-red-600/20 bg-red-600/10 px-3 py-1 text-sm font-medium text-red-600 dark:bg-red-600/20">
-                                    <span className="mr-1 text-lg">🗳️</span>
-                                    Next-Generation Voting Platform
-                                </div>
                                 <h1 className="text-4xl font-bold tracking-tight text-[#1b1b18] dark:text-white sm:text-5xl lg:text-6xl">
                                     Elections that are{' '}<br/>
                                     <span className="inline-block text-red-600">
@@ -249,7 +295,7 @@ export default function Welcome({ allElections = [] }: Props) {
                                         </div>
                                     ) : activeElections.length > 0 ? (
                                         <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                                            {activeElections.map((election) => (
+            {activeElections.map((election) => (
                                                 <div key={election.id} className="rounded-xl border border-[#e3e3e0] bg-white p-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
                                                     <h3 className="font-semibold text-[#1b1b18] dark:text-white">
                                                         {election.title}

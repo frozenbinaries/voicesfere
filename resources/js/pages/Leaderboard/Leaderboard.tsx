@@ -1,7 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     Trophy, Users, BarChart3, Medal, CheckCircle, Clock,
-    ArrowLeft, RefreshCw, TrendingUp, Activity, Zap, Sparkles
+    ArrowLeft, RefreshCw, TrendingUp, Activity, Zap, Sparkles,
+    Sun, Moon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -45,8 +46,36 @@ export default function Leaderboard({ election, leaderboard: initialLeaderboard 
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const [refreshing, setRefreshing] = useState(false);
     const [animatedRows, setAnimatedRows] = useState<Set<number>>(new Set());
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
     const isActive = election.status === 'active';
+
+    // Load dark mode preference from localStorage or system preference
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            setIsDarkMode(true);
+            document.documentElement.classList.add('dark');
+        } else {
+            setIsDarkMode(false);
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
+    // Toggle dark mode
+    const toggleDarkMode = () => {
+        const newMode = !isDarkMode;
+        setIsDarkMode(newMode);
+        if (newMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    };
 
     useEffect(() => {
         if (autoRefresh === 'off') return;
@@ -57,55 +86,52 @@ export default function Leaderboard({ election, leaderboard: initialLeaderboard 
     }, [autoRefresh]);
 
     const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-        const response = await fetch(`/api/leaderboard/${election.identifier}`);
+        setRefreshing(true);
+        try {
+            const response = await fetch(`/api/leaderboard/${election.identifier}`);
 
-        // Check if response is OK
-        if (!response.ok) {
-            if (response.status === 403 || response.status === 404) {
-                // Leaderboard not available - redirect to leaderboard-off page
+            if (!response.ok) {
+                if (response.status === 403 || response.status === 404) {
+                    window.location.href = `/leaderboard/${election.identifier}`;
+                    return;
+                }
+                throw new Error('Failed to fetch leaderboard');
+            }
+
+            const data = await response.json();
+
+            if (data.leaderboard_available === false) {
                 window.location.href = `/leaderboard/${election.identifier}`;
                 return;
             }
-            throw new Error('Failed to fetch leaderboard');
-        }
 
-        const data = await response.json();
+            const oldLeaderboard = leaderboard;
+            const newLeaderboard = data.leaderboard;
 
-        if (data.leaderboard_available === false) {
-            window.location.href = `/leaderboard/${election.identifier}`;
-            return;
-        }
-
-        const oldLeaderboard = leaderboard;
-        const newLeaderboard = data.leaderboard;
-
-        // Find options that changed vote count
-        const changedOptionIds: number[] = [];
-        Object.values(newLeaderboard).forEach((ballot: any) => {
-            ballot.options.forEach((option: any) => {
-                const oldBallot = oldLeaderboard[ballot.ballot_id];
-                const oldOption = oldBallot?.options.find((o: any) => o.option_id === option.option_id);
-                if (oldOption && oldOption.vote_count !== option.vote_count) {
-                    changedOptionIds.push(option.option_id);
-                }
+            const changedOptionIds: number[] = [];
+            Object.values(newLeaderboard).forEach((ballot: any) => {
+                ballot.options.forEach((option: any) => {
+                    const oldBallot = oldLeaderboard[ballot.ballot_id];
+                    const oldOption = oldBallot?.options.find((o: any) => o.option_id === option.option_id);
+                    if (oldOption && oldOption.vote_count !== option.vote_count) {
+                        changedOptionIds.push(option.option_id);
+                    }
+                });
             });
-        });
 
-        setAnimatedRows(new Set(changedOptionIds));
-        setLeaderboard(newLeaderboard);
-        setLastUpdated(new Date());
+            setAnimatedRows(new Set(changedOptionIds));
+            setLeaderboard(newLeaderboard);
+            setLastUpdated(new Date());
 
-        setTimeout(() => {
-            setAnimatedRows(new Set());
-        }, 1000);
-    } catch (error) {
-        console.error('Failed to refresh leaderboard:', error);
-    } finally {
-        setRefreshing(false);
-    }
-};
+            setTimeout(() => {
+                setAnimatedRows(new Set());
+            }, 1000);
+        } catch (error) {
+            console.error('Failed to refresh leaderboard:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const formatDate = (date: string | null) => {
         if (!date) return 'Not set';
@@ -189,6 +215,27 @@ export default function Leaderboard({ election, leaderboard: initialLeaderboard 
             <Head title={`Leaderboard - ${election.title}`} />
 
             <div className="min-h-screen bg-gradient-to-br from-[#FDFDFC] via-white to-red-50 dark:from-[#0a0a0a] dark:via-[#0f0f0f] dark:to-red-950/20">
+                {/* Dark Mode Toggle */}
+                <div className="fixed top-4 right-4 z-50">
+                    <button
+                        onClick={toggleDarkMode}
+                        className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-gray-700 shadow-lg transition-all hover:bg-gray-100 dark:bg-[#1f1f1f] dark:text-white dark:hover:bg-[#2d2d2d] border border-[#e3e3e0] dark:border-[#3E3E3A]"
+                        aria-label="Toggle dark mode"
+                    >
+                        {isDarkMode ? (
+                            <>
+                                <Sun className="h-4 w-4" />
+                                <span className="text-sm font-medium">Light</span>
+                            </>
+                        ) : (
+                            <>
+                                <Moon className="h-4 w-4" />
+                                <span className="text-sm font-medium">Dark</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+
                 {/* Animated background for active election */}
                 {isActive && (
                     <div className="fixed inset-0 pointer-events-none overflow-hidden">

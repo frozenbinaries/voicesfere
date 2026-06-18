@@ -57,7 +57,8 @@ class Election extends Model
     }
 
 
-    public function subscription(){
+    public function subscription()
+    {
         return $this->hasOne(Subscription::class);
     }
 
@@ -134,5 +135,90 @@ class Election extends Model
     {
         // Check if leaderboard is enabled AND election is active/completed
         return $this->leaderboard_on && in_array($this->status, ['active', 'completed']);
+    }
+
+    public function getResults()
+    {
+        $results = [];
+
+        foreach ($this->ballots as $ballot) {
+            $optionVoteCounts = Vote::where('election_id', $this->id)
+                ->where('ballot_id', $ballot->id)
+                ->select('option_id', DB::raw('count(*) as vote_count'))
+                ->groupBy('option_id')
+                ->pluck('vote_count', 'option_id');
+
+            $totalVotesForBallot = $optionVoteCounts->sum();
+
+            $ballotResults = [];
+
+            foreach ($ballot->options as $option) {
+                $voteCount = $optionVoteCounts[$option->id] ?? 0;
+
+                $ballotResults[] = [
+                    'option_id' => $option->id,
+                    'option_title' => $option->title,
+                    'option_description' => $option->description,
+                    'photo_url' => $option->photo_url,
+                    'should_display_a_photo' => $option->should_display_a_photo,
+                    'vote_count' => $voteCount,
+                    'percentage' => $totalVotesForBallot > 0
+                        ? round(($voteCount / $totalVotesForBallot) * 100, 2)
+                        : 0,
+                ];
+            }
+
+            usort($ballotResults, fn($a, $b) => $b['vote_count'] - $a['vote_count']);
+
+            // Mark winners
+            if (!empty($ballotResults)) {
+                $maxVotes = $ballotResults[0]['vote_count'];
+                foreach ($ballotResults as &$result) {
+                    $result['is_winner'] = $result['vote_count'] == $maxVotes && $maxVotes > 0;
+                }
+            }
+
+            $results[$ballot->id] = [
+                'ballot_id' => $ballot->id,
+                'ballot_title' => $ballot->title,
+                'ballot_type' => $ballot->type,
+                'total_votes' => $totalVotesForBallot,
+                'options' => $ballotResults,
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Get election statistics
+     */
+    // app/Models/Election.php - Updated getStatistics() method
+    public function getStatistics()
+    {
+        $totalVoters = $this->voters()->count();
+
+        // Count unique voters who have voted (not total votes)
+        $totalVotersWhoVoted = Vote::where('election_id', $this->id)
+            ->distinct('voter_token')
+            ->count('voter_token');
+
+        // OR if you have voter_id in votes table:
+        // $totalVotersWhoVoted = Vote::where('election_id', $this->id)
+        //     ->distinct('voter_id')
+        //     ->count('voter_id');
+
+        return [
+            'total_voters' => $totalVoters,
+            'total_votes_cast' => Vote::where('election_id', $this->id)->count(), // Total votes across all ballots
+            'voters_who_voted' => $totalVotersWhoVoted, // Unique voters who voted
+            'turnout' => $totalVoters > 0
+                ? round(($totalVotersWhoVoted / $totalVoters) * 100, 2)
+                : 0,
+            'ballots_count' => $this->ballots()->count(),
+            'candidates_count' => $this->ballots->reduce(function ($total, $ballot) {
+                return $total + $ballot->options->count();
+            }, 0),
+        ];
     }
 }
