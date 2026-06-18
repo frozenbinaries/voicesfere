@@ -47,6 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
   Route::post('/elections/{election}/resume', [ElectionController::class, 'resume']);
   Route::post('/elections/{election}/end',    [ElectionController::class, 'end']);
   Route::post('/elections/{electionId}/voters/import', [ElectionController::class, 'importVoters'])->name('voters.import');
+  Route::post('/elections/{electionId}/copy', [ElectionController::class, 'copyElection'])->name('election.copy');
 
   Route::post('/ballots/{ballot}/options', [BallotController::class, 'storeOption'])->name('ballots.options.store');
 

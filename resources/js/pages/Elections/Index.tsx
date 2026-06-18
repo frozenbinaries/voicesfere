@@ -1,7 +1,11 @@
 // resources/js/pages/Elections/Index.tsx
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/layouts/AdminLayout';
-import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Play, Pause, BarChart3, Calendar, Users, Clock, CheckCircle, FileText, Vote, X, AlertCircle } from 'lucide-react';
+import {
+    Plus, Search, MoreVertical, Edit, Trash2, Eye, Play, Pause,
+    BarChart3, Calendar, Users, Clock, CheckCircle, FileText,
+    Vote, X, AlertCircle, Copy
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface Candidate {
@@ -325,13 +329,235 @@ function CreateElectionModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
     );
 }
 
+// ─── Duplicate Election Modal ──────────────────────────────────────────────────────────
+function DuplicateElectionModal({
+    isOpen,
+    onClose,
+    electionId,
+    electionTitle,
+    onSuccess,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    electionId: number;
+    electionTitle: string;
+    onSuccess?: () => void;
+}) {
+    const [title, setTitle] = useState(`${electionTitle} (Copy)`);
+    const [copyBallots, setCopyBallots] = useState(true);
+    const [copyOptions, setCopyOptions] = useState(true);
+    const [copyVoters, setCopyVoters] = useState(false);
+    const [copying, setCopying] = useState(false);
+    const [error, setError] = useState('');
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (!title.trim()) {
+            setError('Please enter a title for the duplicated election');
+            return;
+        }
+
+        setCopying(true);
+
+        router.post(`/elections/${electionId}/copy`, {
+            title: title.trim(),
+            copy_ballots: copyBallots,
+            copy_options: copyOptions,
+            copy_voters: copyVoters,
+        }, {
+            onSuccess: () => {
+                setCopying(false);
+                onClose();
+                if (onSuccess) onSuccess();
+                router.reload();
+            },
+            onError: (errors) => {
+                setCopying(false);
+                setError(Object.values(errors).join(', '));
+            },
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="relative z-10 w-full max-w-md rounded-xl bg-white shadow-xl dark:bg-[#161615] animate-in fade-in zoom-in duration-200">
+                <div className="flex items-center justify-between border-b border-[#e3e3e0] px-6 py-4 dark:border-[#3E3E3A]">
+                    <div>
+                        <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                            Duplicate Election
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Select what to copy from "{electionTitle}"
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {error && (
+                        <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                            <AlertCircle className="h-4 w-4" />
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Election Title */}
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-[#1b1b18] dark:text-white">
+                            New Election Title <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full rounded-lg border border-[#e3e3e0] px-3 py-2 text-sm focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white"
+                            autoFocus
+                        />
+                    </div>
+
+                    {/* Copy Options */}
+                    <div className="space-y-3">
+                        <label className="block text-sm font-medium text-[#1b1b18] dark:text-white">
+                            What to copy
+                        </label>
+
+                        {/* Copy Ballots */}
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#e3e3e0] p-3 hover:bg-gray-50 dark:border-[#3E3E3A] dark:hover:bg-gray-800">
+                            <input
+                                type="checkbox"
+                                checked={copyBallots}
+                                onChange={(e) => {
+                                    setCopyBallots(e.target.checked);
+                                    if (!e.target.checked) {
+                                        setCopyOptions(false);
+                                    }
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                            />
+                            <div>
+                                <p className="text-sm font-medium text-[#1b1b18] dark:text-white">
+                                    Copy Ballots
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Includes all ballot questions
+                                </p>
+                            </div>
+                        </label>
+
+                        {/* Copy Options */}
+                        <label className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 ${
+                            copyBallots
+                                ? 'border-[#e3e3e0] hover:bg-gray-50 dark:border-[#3E3E3A] dark:hover:bg-gray-800'
+                                : 'border-gray-200 bg-gray-50 opacity-50 dark:border-gray-700 dark:bg-gray-900/50'
+                        }`}>
+                            <input
+                                type="checkbox"
+                                checked={copyOptions}
+                                onChange={(e) => setCopyOptions(e.target.checked)}
+                                disabled={!copyBallots}
+                                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 disabled:opacity-50"
+                            />
+                            <div>
+                                <p className="text-sm font-medium text-[#1b1b18] dark:text-white">
+                                    Copy Options
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Includes all options/candidates for each ballot
+                                </p>
+                            </div>
+                        </label>
+
+                        {/* Copy Voters */}
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#e3e3e0] p-3 hover:bg-gray-50 dark:border-[#3E3E3A] dark:hover:bg-gray-800">
+                            <input
+                                type="checkbox"
+                                checked={copyVoters}
+                                onChange={(e) => setCopyVoters(e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                            />
+                            <div>
+                                <p className="text-sm font-medium text-[#1b1b18] dark:text-white">
+                                    Copy Voters
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Copies all voters (voting status will be reset)
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <div className="flex items-start gap-2">
+                            <CheckCircle className="mt-0.5 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <div className="text-xs text-blue-800 dark:text-blue-300">
+                                <p className="font-medium">What will happen:</p>
+                                <ul className="mt-1 list-inside list-disc">
+                                    <li>A new draft election will be created</li>
+                                    <li>Title will be "{title}"</li>
+                                    <li>Start and end dates will be cleared</li>
+                                    {!copyBallots && <li>Ballots will NOT be copied</li>}
+                                    {copyBallots && !copyOptions && <li>Ballots will be copied WITHOUT options</li>}
+                                    {copyBallots && copyOptions && <li>Ballots and options will be copied</li>}
+                                    {copyVoters && <li>Voters will be copied (voting status reset)</li>}
+                                    {!copyVoters && <li>Voters will NOT be copied</li>}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-lg border border-[#e3e3e0] px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={copying || !title.trim()}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                        >
+                            {copying ? (
+                                <>
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    Duplicating...
+                                </>
+                            ) : (
+                                <>
+                                    <Copy className="h-4 w-4" />
+                                    Duplicate Election
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function ElectionsIndex({ allElections }: Props) {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [menuOpen, setMenuOpen] = useState<number | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
     const [electionToDelete, setElectionToDelete] = useState<Election | null>(null);
+    const [electionToDuplicate, setElectionToDuplicate] = useState<Election | null>(null);
 
     const filteredElections = allElections.filter((election) => {
         const matchesSearch = searchTerm === '' ||
@@ -418,6 +644,13 @@ export default function ElectionsIndex({ allElections }: Props) {
         e.stopPropagation();
         setElectionToDelete(election);
         setIsDeleteModalOpen(true);
+    };
+
+    const handleDuplicateClick = (election: Election, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setElectionToDuplicate(election);
+        setIsDuplicateModalOpen(true);
+        setMenuOpen(null);
     };
 
     const handleConfirmDelete = () => {
@@ -598,6 +831,13 @@ export default function ElectionsIndex({ allElections }: Props) {
                                                                     <Edit className="mr-2 h-4 w-4" />
                                                                     Edit
                                                                 </Link>
+                                                                <button
+                                                                    onClick={(e) => handleDuplicateClick(election, e)}
+                                                                    className="flex w-full items-center px-4 py-2 text-left text-sm text-blue-700 hover:bg-gray-100 dark:text-blue-500 dark:hover:bg-gray-800"
+                                                                >
+                                                                    <Copy className="mr-2 h-4 w-4" />
+                                                                    Duplicate
+                                                                </button>
                                                                 <Link
                                                                     href={`/elections/${election.id}/ballots`}
                                                                     className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
@@ -672,6 +912,21 @@ export default function ElectionsIndex({ allElections }: Props) {
                 }}
                 onConfirm={handleConfirmDelete}
                 electionTitle={electionToDelete?.title || ''}
+            />
+
+            {/* Duplicate Election Modal */}
+            <DuplicateElectionModal
+                isOpen={isDuplicateModalOpen}
+                onClose={() => {
+                    setIsDuplicateModalOpen(false);
+                    setElectionToDuplicate(null);
+                }}
+                electionId={electionToDuplicate?.id || 0}
+                electionTitle={electionToDuplicate?.title || ''}
+                onSuccess={() => {
+                    // Refresh the page after duplication
+                    router.reload();
+                }}
             />
         </AdminLayout>
     );

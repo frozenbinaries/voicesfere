@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 class ElectionController extends Controller
 {
     /**
@@ -330,14 +331,7 @@ class ElectionController extends Controller
 
 
 
-    public function generateUniqueVoterKey()
-    {
-        do {
-            $key = strtoupper(Str::random(8)); // Generates 8 character random string
-        } while (Voter::where('voter_token', $key)->exists());
 
-        return $key;
-    }
 
     public function updateLeaderboardStatus(Request $request, $electionId)
     {
@@ -373,5 +367,107 @@ class ElectionController extends Controller
     {
         $election->update(['status' => 'completed']);
         return back();
+    }
+
+
+    public function copyElection(Request $request, $electionId)
+    {
+        $request->validate([
+            'title' => 'nullable|string|max:255',
+            'copy_ballots' => 'boolean',
+            'copy_options' => 'boolean',
+            'copy_voters' => 'boolean',
+        ]);
+
+        $original = Election::with(['ballots.options', 'voters'])->findOrFail($electionId);
+
+        DB::beginTransaction();
+
+        try {
+            // Determine the new title
+            $newTitle = $request->input('title')
+                ? $request->input('title')
+                : $original->title . ' (Copy)';
+
+            // 1. Copy the election
+            $copy = Election::create([
+                'title' => $newTitle,
+                'description' => $original->description,
+                'status' => 'draft',
+                'start_date' => null,
+                'end_date' => null,
+                'identifier' => Str::uuid(),
+                'settings' => $original->settings,
+                'is_leaderboard_public' => false,
+                'created_by' => auth()->id(),
+            ]);
+
+            // 2. Copy ballots and options based on user selection
+            if ($request->input('copy_ballots', true)) {
+                foreach ($original->ballots as $originalBallot) {
+                    $newBallot = $copy->ballots()->create([
+                        'title' => $originalBallot->title,
+                        'description' => $originalBallot->description,
+                        'type' => $originalBallot->type,
+                        'settings' => $originalBallot->settings,
+                        'display_order' => $originalBallot->display_order,
+                        'is_required' => $originalBallot->is_required,
+                        'max_selections' => $originalBallot->max_selections,
+                        'min_selections' => $originalBallot->min_selections,
+                    ]);
+
+                    // 3. Copy options only if user wants them
+                    if ($request->input('copy_options', true)) {
+                        foreach ($originalBallot->options as $originalOption) {
+                            $newBallot->options()->create([
+                                'title' => $originalOption->title,
+                                'description' => $originalOption->description,
+                                'display_order' => $originalOption->display_order,
+                                'value' => $originalOption->value,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // 4. Copy voters if user wants them
+            if ($request->input('copy_voters', false)) {
+                foreach ($original->voters as $originalVoter) {
+                    $copy->voters()->create([
+                        'name' => $originalVoter->name,
+                        'email' => $originalVoter->email,
+                        'voter_id' => $originalVoter->voter_id ? $originalVoter->voter_id : null,
+                        'voter_token' => $this->generateUniqueVoterKey(),
+                        'has_voted' => false,
+                        'invited_at' => null,
+                        'voted_at' => null,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('elections.show', $copy->id)
+                ->with('success', 'Election copied successfully!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to copy election: ' . $e->getMessage(), [
+                'original_election_id' => $electionId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Failed to copy election. Please try again.');
+        }
+    }
+
+    public function generateUniqueVoterKey()
+    {
+        do {
+            $key = strtoupper(Str::random(8)); // Generates 8 character random string
+        } while (Voter::where('voter_token', $key)->exists());
+
+        return $key;
     }
 }

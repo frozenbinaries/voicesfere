@@ -20,6 +20,8 @@ import {
     Edit,
     Menu,
     X,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -37,6 +39,37 @@ export default function HelpIndex() {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activeSection, setActiveSection] = useState<string>('');
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+    // Initialize theme based on device preference
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+            setTheme(savedTheme);
+            applyTheme(savedTheme);
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const defaultTheme = prefersDark ? 'dark' : 'light';
+            setTheme(defaultTheme);
+            applyTheme(defaultTheme);
+        }
+    }, []);
+
+    const applyTheme = (newTheme: 'light' | 'dark') => {
+        const root = document.documentElement;
+        if (newTheme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+        localStorage.setItem('theme', newTheme);
+    };
+
+    const toggleTheme = () => {
+        const newTheme = theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+        applyTheme(newTheme);
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -269,6 +302,27 @@ export default function HelpIndex() {
 
             <div className="min-h-screen bg-gradient-to-br from-[#FDFDFC] via-white to-red-50 dark:from-[#0a0a0a] dark:via-[#0f0f0f] dark:to-red-950/20">
                 <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                    {/* Header with Theme Toggle */}
+                    <div className="mb-6 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold text-[#1b1b18] dark:text-white">Help Center</h1>
+                            <p className="mt-1 text-gray-600 dark:text-gray-400">
+                                Guides and solutions for common election issues
+                            </p>
+                        </div>
+                        <button
+                            onClick={toggleTheme}
+                            className="rounded-lg p-2 text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                            aria-label="Toggle theme"
+                        >
+                            {theme === 'light' ? (
+                                <Moon className="h-5 w-5" />
+                            ) : (
+                                <Sun className="h-5 w-5" />
+                            )}
+                        </button>
+                    </div>
+
                     {/* Mobile menu button */}
                     <div className="mb-4 md:hidden">
                         <button
@@ -319,14 +373,6 @@ export default function HelpIndex() {
 
                         {/* Main Content */}
                         <main className="flex-1 min-w-0">
-                            {/* Header */}
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-bold text-[#1b1b18] dark:text-white">Help Center</h1>
-                                <p className="mt-1 text-gray-600 dark:text-gray-400">
-                                    Guides and solutions for common election issues
-                                </p>
-                            </div>
-
                             {/* Help Sections */}
                             <div className="space-y-6">
                                 {helpSections.map((section) => {
@@ -377,7 +423,7 @@ export default function HelpIndex() {
                                                 <ol className="space-y-3">
                                                     {section.steps.map((step, idx) => (
                                                         <li key={idx} className="flex gap-3">
-                                                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-medium text-red-600 dark:bg-red-900/30">
+                                                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
                                                                 {idx + 1}
                                                             </span>
                                                             <span className="text-gray-700 dark:text-gray-300">{step}</span>
