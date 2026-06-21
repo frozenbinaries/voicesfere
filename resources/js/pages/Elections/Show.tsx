@@ -34,6 +34,7 @@ import {
     DollarSign,
     Shield,
     Crown,
+    Lock,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import CreateBallotModal from '@/components/CreateBallotModal';
@@ -131,7 +132,14 @@ const formatPrice = (price: string, currency: string) => {
 };
 
 // ─── Subscription Modal (Popup) ──────────────────────────────────────────────
-function SubscriptionModal({ isOpen, onClose, plans, currentPlan, voterCount, onSubscribe }: {
+function SubscriptionModal({
+    isOpen,
+    onClose,
+    plans,
+    currentPlan,
+    voterCount,
+    onSubscribe,
+}: {
     isOpen: boolean;
     onClose: () => void;
     plans: Plan[];
@@ -144,8 +152,10 @@ function SubscriptionModal({ isOpen, onClose, plans, currentPlan, voterCount, on
 
     if (!isOpen) return null;
 
-    // Find the recommended plan based on voter count
-    const recommendedPlan = plans.find(plan => plan.max_voters >= voterCount && plan.min_voters <= voterCount);
+    const recommendedPlan = plans.find(
+        (plan) =>
+            plan.max_voters >= voterCount && plan.min_voters <= voterCount,
+    );
 
     const handleSubscribe = () => {
         if (!selectedPlan) return;
@@ -155,7 +165,10 @@ function SubscriptionModal({ isOpen, onClose, plans, currentPlan, voterCount, on
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={onClose}
+            />
             <div className="relative z-10 max-h-[90vh] w-full max-w-4xl animate-in overflow-y-auto rounded-2xl bg-white shadow-2xl duration-200 fade-in zoom-in dark:bg-[#161615]">
                 <div className="sticky top-0 z-10 border-b border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
                     <div className="flex items-center justify-between">
@@ -165,7 +178,9 @@ function SubscriptionModal({ isOpen, onClose, plans, currentPlan, voterCount, on
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
-                                    {currentPlan ? 'Upgrade Subscription' : 'Choose a Subscription Plan'}
+                                    {currentPlan
+                                        ? 'Upgrade Subscription'
+                                        : 'Choose a Subscription Plan'}
                                 </h2>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
                                     {voterCount} eligible voters
@@ -185,64 +200,87 @@ function SubscriptionModal({ isOpen, onClose, plans, currentPlan, voterCount, on
                     {recommendedPlan && (
                         <div className="mb-4 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
                             <p className="text-sm text-blue-800 dark:text-blue-400">
-                                💡 Recommended for {voterCount} voters: <strong>{recommendedPlan.name}</strong>
+                                💡 Recommended for {voterCount} voters:{' '}
+                                <strong>{recommendedPlan.name}</strong>
                             </p>
                         </div>
                     )}
 
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {plans.filter(plan => plan.status === 'active').map((plan) => {
-                            const isCurrent = currentPlan?.id === plan.id;
-                            const isRecommended = recommendedPlan?.id === plan.id;
-                            const isEligible = plan.min_voters <= voterCount && plan.max_voters >= voterCount;
+                        {plans
+                            .filter((plan) => plan.status === 'active')
+                            .map((plan) => {
+                                const isCurrent = currentPlan?.id === plan.id;
+                                const isRecommended =
+                                    recommendedPlan?.id === plan.id;
+                                const isEligible =
+                                    plan.min_voters <= voterCount &&
+                                    plan.max_voters >= voterCount;
 
-                            return (
-                                <div
-                                    key={plan.id}
-                                    className={`relative rounded-lg border-2 p-4 transition-all ${
-                                        selectedPlan?.id === plan.id
-                                            ? 'border-blue-600 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20'
-                                            : isCurrent
-                                            ? 'border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                                            : 'border-gray-200 hover:border-blue-300 dark:border-gray-700 dark:hover:border-blue-700'
-                                    } ${!isEligible && !isCurrent ? 'opacity-60' : 'cursor-pointer'}`}
-                                    onClick={() => (isEligible || isCurrent) && !isCurrent && setSelectedPlan(plan)}
-                                >
-                                    {isCurrent && (
-                                        <div className="absolute -top-2 right-2 rounded-full bg-green-600 px-2 py-0.5 text-xs text-white">
-                                            Current
-                                        </div>
-                                    )}
-                                    {isRecommended && !isCurrent && (
-                                        <div className="absolute -top-2 right-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
-                                            Recommended
-                                        </div>
-                                    )}
+                                return (
+                                    <div
+                                        key={plan.id}
+                                        className={`relative rounded-lg border-2 p-4 transition-all ${
+                                            selectedPlan?.id === plan.id
+                                                ? 'border-blue-600 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20'
+                                                : isCurrent
+                                                  ? 'border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
+                                                  : 'border-gray-200 hover:border-blue-300 dark:border-gray-700 dark:hover:border-blue-700'
+                                        } ${!isEligible && !isCurrent ? 'opacity-60' : 'cursor-pointer'}`}
+                                        onClick={() =>
+                                            (isEligible || isCurrent) &&
+                                            !isCurrent &&
+                                            setSelectedPlan(plan)
+                                        }
+                                    >
+                                        {isCurrent && (
+                                            <div className="absolute -top-2 right-2 rounded-full bg-green-600 px-2 py-0.5 text-xs text-white">
+                                                Current
+                                            </div>
+                                        )}
+                                        {isRecommended && !isCurrent && (
+                                            <div className="absolute -top-2 right-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
+                                                Recommended
+                                            </div>
+                                        )}
 
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{plan.name}</h3>
-                                    <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                        {formatPrice(plan.price, plan.currency)}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">one-time payment</p>
-
-                                    <div className="mt-3 space-y-2">
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Users className="h-4 w-4 text-gray-400" />
-                                            <span className="text-gray-600 dark:text-gray-400">
-                                                {plan.min_voters.toLocaleString()} - {plan.max_voters.toLocaleString()} voters
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {!isEligible && !isCurrent && (
-                                        <p className="mt-3 text-xs text-red-500">
-                                            ⚠️ Not suitable for {voterCount} voters
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                                            {plan.name}
+                                        </h3>
+                                        <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                            {formatPrice(
+                                                plan.price,
+                                                plan.currency,
+                                            )}
                                         </p>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            one-time payment
+                                        </p>
+
+                                        <div className="mt-3 space-y-2">
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                {plan.description}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Users className="h-4 w-4 text-gray-400" />
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    {plan.min_voters.toLocaleString()}{' '}
+                                                    -{' '}
+                                                    {plan.max_voters.toLocaleString()}{' '}
+                                                    voters
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {!isEligible && !isCurrent && (
+                                            <p className="mt-3 text-xs text-red-500">
+                                                ⚠️ Not suitable for {voterCount}{' '}
+                                                voters
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })}
                     </div>
                 </div>
 
@@ -482,10 +520,12 @@ function AddVoterModal({
     isOpen,
     onClose,
     electionId,
+    isEditable,
 }: {
     isOpen: boolean;
     onClose: () => void;
     electionId: number;
+    isEditable: boolean;
 }) {
     const [name, setName] = useState('');
     const [voterId, setVoterId] = useState('');
@@ -502,6 +542,11 @@ function AddVoterModal({
     if (!isOpen) return null;
 
     const handleAddSingle = () => {
+        if (!isEditable) {
+            setErrors({ email: 'Cannot add voters to a completed or active election.' });
+            return;
+        }
+
         const newErrors: { name?: string; voter_id?: string; email?: string } =
             {};
 
@@ -563,6 +608,11 @@ function AddVoterModal({
     };
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!isEditable) {
+            setErrors({ email: 'Cannot import voters to a completed or active election.' });
+            return;
+        }
+
         const file = e.target.files?.[0];
         if (!file) return;
         setImporting(true);
@@ -603,7 +653,7 @@ function AddVoterModal({
                             Add Voter
                         </h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Add individually or import a CSV file
+                            {isEditable ? 'Add individually or import a CSV file' : 'Voting is locked for this election'}
                         </p>
                     </div>
                     <button
@@ -615,6 +665,20 @@ function AddVoterModal({
                 </div>
 
                 <div className="space-y-4 p-6">
+                    {!isEditable && (
+                        <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                            <div className="flex items-start gap-2">
+                                <Lock className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                <div className="text-xs text-yellow-800 dark:text-yellow-300">
+                                    <p className="font-medium">Read-Only Mode</p>
+                                    <p className="mt-1">
+                                        This election is {election.status}. You cannot add or modify voters.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-3">
                         <div className="relative">
                             <User className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -623,11 +687,12 @@ function AddVoterModal({
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Full name *"
+                                disabled={!isEditable}
                                 className={`w-full rounded-lg border ${
                                     errors.name
                                         ? 'border-red-500'
                                         : 'border-[#e3e3e0]'
-                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                             />
                             {errors.name && (
                                 <p className="mt-1 text-xs text-red-500">
@@ -643,11 +708,12 @@ function AddVoterModal({
                                 value={voterId}
                                 onChange={(e) => setVoterId(e.target.value)}
                                 placeholder="Voter ID (required if no email)"
+                                disabled={!isEditable}
                                 className={`w-full rounded-lg border ${
                                     errors.voter_id
                                         ? 'border-red-500'
                                         : 'border-[#e3e3e0]'
-                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                             />
                             {errors.voter_id && (
                                 <p className="mt-1 text-xs text-red-500">
@@ -663,11 +729,12 @@ function AddVoterModal({
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Email address (required if no Voter ID)"
+                                disabled={!isEditable}
                                 className={`w-full rounded-lg border ${
                                     errors.email
                                         ? 'border-red-500'
                                         : 'border-[#e3e3e0]'
-                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                                 onKeyDown={(e) =>
                                     e.key === 'Enter' && handleAddSingle()
                                 }
@@ -679,61 +746,9 @@ function AddVoterModal({
                             )}
                         </div>
 
-                        <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
-                            <div className="flex items-start gap-2">
-                                <svg
-                                    className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                </svg>
-                                <div className="text-xs text-yellow-800 dark:text-yellow-300">
-                                    <p className="font-medium">Requirement:</p>
-                                    <p className="mt-1">
-                                        Either <strong>Email</strong> or{' '}
-                                        <strong>Voter ID</strong> must be
-                                        provided. Both can also be provided.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                            <div className="flex items-start gap-2">
-                                <svg
-                                    className="mt-0.5 h-4 w-4 text-blue-600 dark:text-blue-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                </svg>
-                                <div className="text-xs text-blue-800 dark:text-blue-300">
-                                    <p className="font-medium">Voter Token</p>
-                                    <p className="mt-1">
-                                        A unique voter token will be
-                                        automatically generated and sent to the
-                                        voter's email address (if provided).
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
                         <button
                             onClick={handleAddSingle}
-                            disabled={saving || !name.trim()}
+                            disabled={saving || !name.trim() || !isEditable}
                             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
                         >
                             {saving ? (
@@ -763,7 +778,7 @@ function AddVoterModal({
                         </button>
                         <button
                             onClick={() => fileRef.current?.click()}
-                            disabled={importing}
+                            disabled={importing || !isEditable}
                             className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#e3e3e0] px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:opacity-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
                         >
                             {importing ? (
@@ -927,7 +942,6 @@ function LaunchConfirmationModal({
 
     if (!isOpen) return null;
 
-    // Validation checks
     const hasBallots = election.ballots && election.ballots.length > 0;
     const hasOptions = election.ballots?.some(
         (ballot) => ballot.options && ballot.options.length > 0,
@@ -1029,7 +1043,6 @@ function LaunchConfirmationModal({
                 onClick={handleClose}
             />
             <div className="relative z-10 max-h-[90vh] w-full max-w-2xl animate-in overflow-y-auto rounded-2xl bg-white shadow-2xl duration-200 fade-in zoom-in dark:bg-[#161615]">
-                {/* Header with Steps */}
                 <div className="sticky top-0 z-10 border-b border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -1053,7 +1066,6 @@ function LaunchConfirmationModal({
                         </button>
                     </div>
 
-                    {/* Progress Steps */}
                     <div className="mt-4 flex items-center justify-between">
                         {[
                             {
@@ -1105,7 +1117,6 @@ function LaunchConfirmationModal({
                     </div>
                 </div>
 
-                {/* Step 1: Review Issues */}
                 {step === 1 && (
                     <div className="space-y-6 p-6">
                         <div className="rounded-lg border border-[#e3e3e0] bg-gray-50 p-4 dark:border-[#3E3E3A] dark:bg-gray-900/20">
@@ -1164,7 +1175,6 @@ function LaunchConfirmationModal({
                             </div>
                         </div>
 
-                        {/* Summary Cards */}
                         <div className="grid gap-3 sm:grid-cols-3">
                             <div className="rounded-lg border border-[#e3e3e0] p-3 text-center dark:border-[#3E3E3A]">
                                 <div className="text-2xl font-bold text-red-600">
@@ -1199,10 +1209,8 @@ function LaunchConfirmationModal({
                     </div>
                 )}
 
-                {/* Step 2: Settings & Details */}
                 {step === 2 && (
                     <div className="space-y-4 p-6">
-                        {/* Settings Section */}
                         <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
                             <div className="flex items-center gap-2 border-b border-[#e3e3e0] px-4 py-3 dark:border-[#3E3E3A]">
                                 <Settings className="h-4 w-4 text-gray-500" />
@@ -1269,7 +1277,6 @@ function LaunchConfirmationModal({
                             </div>
                         </div>
 
-                        {/* Voters Section */}
                         <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
                             <div className="flex items-center gap-2 border-b border-[#e3e3e0] px-4 py-3 dark:border-[#3E3E3A]">
                                 <Users className="h-4 w-4 text-gray-500" />
@@ -1302,7 +1309,6 @@ function LaunchConfirmationModal({
                             </div>
                         </div>
 
-                        {/* Ballot Section */}
                         <div className="rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
                             <div className="flex items-center gap-2 border-b border-[#e3e3e0] px-4 py-3 dark:border-[#3E3E3A]">
                                 <FileText className="h-4 w-4 text-gray-500" />
@@ -1383,7 +1389,6 @@ function LaunchConfirmationModal({
                     </div>
                 )}
 
-                {/* Step 3: Confirm Launch */}
                 {step === 3 && (
                     <div className="space-y-6 p-6">
                         <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
@@ -1425,7 +1430,6 @@ function LaunchConfirmationModal({
                     </div>
                 )}
 
-                {/* Footer */}
                 <div className="sticky bottom-0 flex justify-between gap-3 border-t border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
                     {step > 1 ? (
                         <button
@@ -1483,7 +1487,8 @@ export default function ElectionShow({ election, plans }: Props) {
     const [isAddVoterModalOpen, setIsAddVoterModalOpen] = useState(false);
     const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
     const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
-    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] =
+        useState(false);
     const [selectedBallot, setSelectedBallot] = useState<Ballot | null>(null);
     const [ballotToDelete, setBallotToDelete] = useState<Ballot | null>(null);
     const [optionToDelete, setOptionToDelete] = useState<{
@@ -1506,10 +1511,13 @@ export default function ElectionShow({ election, plans }: Props) {
     });
 
     const voterCount = election.voters?.length || 0;
+    const isEditable = election.status === 'draft';
+    const isActive = election.status === 'active';
+    const isCompleted = election.status === 'completed' || election.status === 'archived';
 
-    // Find current plan from subscription
     const currentPlan = election.subscription?.plan || null;
-    const hasValidSubscription = election.subscription?.status === 'active' &&
+    const hasValidSubscription =
+        election.subscription?.status === 'active' &&
         new Date(election.subscription.ends_at) > new Date();
 
     const tabs = [
@@ -1537,11 +1545,20 @@ export default function ElectionShow({ election, plans }: Props) {
     };
 
     const handleManageOptions = (ballot: Ballot) => {
+        if (!isEditable) {
+            // Show toast or alert
+            alert('This election is not in draft mode. You cannot modify ballots.');
+            return;
+        }
         setSelectedBallot(ballot);
         setIsOptionModalOpen(true);
     };
 
     const handleDeleteBallotClick = (ballot: Ballot) => {
+        if (!isEditable) {
+            alert('This election is not in draft mode. You cannot delete ballots.');
+            return;
+        }
         setDeleteModalConfig({
             isOpen: true,
             title: 'Delete Ballot Question',
@@ -1560,6 +1577,10 @@ export default function ElectionShow({ election, plans }: Props) {
     };
 
     const handleDeleteOptionClick = (option: Option, ballot: Ballot) => {
+        if (!isEditable) {
+            alert('This election is not in draft mode. You cannot delete options.');
+            return;
+        }
         setDeleteModalConfig({
             isOpen: true,
             title: 'Remove Option',
@@ -1578,6 +1599,10 @@ export default function ElectionShow({ election, plans }: Props) {
     };
 
     const handleDeleteVoterClick = (voter: Voter) => {
+        if (!isEditable) {
+            alert('This election is not in draft mode. You cannot remove voters.');
+            return;
+        }
         setDeleteModalConfig({
             isOpen: true,
             title: 'Remove Voter',
@@ -1603,14 +1628,18 @@ export default function ElectionShow({ election, plans }: Props) {
     };
 
     const handleSubscribe = (planId: number) => {
-        router.post(`/elections/${election.id}/subscribe`, {
-            plan_id: planId
-        }, {
-            onSuccess: () => {
-                setIsSubscriptionModalOpen(false);
-                router.reload();
+        router.post(
+            `/elections/${election.id}/subscribe`,
+            {
+                plan_id: planId,
             },
-        });
+            {
+                onSuccess: () => {
+                    setIsSubscriptionModalOpen(false);
+                    router.reload();
+                },
+            },
+        );
     };
 
     const handleLaunch = () => {
@@ -1628,6 +1657,7 @@ export default function ElectionShow({ election, plans }: Props) {
 
     const electionUrl = `${window.location.origin}/vote/${election.identifier}`;
     const leaderboardUrl = `${window.location.origin}/leaderboard/${election.identifier}`;
+    const previewUrl = `/vote/${election.identifier}/preview`;
 
     const getStatusConfig = () => {
         const now = new Date();
@@ -1716,13 +1746,25 @@ export default function ElectionShow({ election, plans }: Props) {
 
             <div className="space-y-6">
                 {/* Back */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-4">
                     <Link
                         href="/elections"
                         className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-all hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-red-500"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Back to Elections
+                    </Link>
+
+                    {/* Preview Button - Always Visible */}
+                    <Link
+                        href={previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
+                    >
+                        <Eye className="h-4 w-4" />
+                        Preview Election
+                        <ExternalLink className="h-3.5 w-3.5" />
                     </Link>
                 </div>
 
@@ -1737,6 +1779,12 @@ export default function ElectionShow({ election, plans }: Props) {
                                 <p className="mt-2 text-gray-600 dark:text-gray-400">
                                     {election.description}
                                 </p>
+                            )}
+                            {!isEditable && (
+                                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-yellow-100 px-3 py-1 text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                    <Lock className="h-3 w-3" />
+                                    Read-Only Mode - This election is {election.status}
+                                </div>
                             )}
                         </div>
                         <div className="flex items-center gap-3">
@@ -1768,7 +1816,7 @@ export default function ElectionShow({ election, plans }: Props) {
 
                 {/* Current Plan Badge - Always visible */}
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/20">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             {currentPlan ? (
                                 <>
@@ -1778,32 +1826,52 @@ export default function ElectionShow({ election, plans }: Props) {
                                         <AlertCircle className="h-5 w-5 text-yellow-600" />
                                     )}
                                     <div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Current Plan</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            Current Plan
+                                        </p>
                                         <p className="font-semibold text-gray-900 dark:text-white">
                                             {currentPlan.name}
                                         </p>
                                         <p className="text-xs text-gray-500">
-                                            {formatPrice(currentPlan.price, currentPlan.currency)} • {currentPlan.min_voters}-{currentPlan.max_voters} voters
+                                            {formatPrice(
+                                                currentPlan.price,
+                                                currentPlan.currency,
+                                            )}{' '}
+                                            • {currentPlan.min_voters}-
+                                            {currentPlan.max_voters} voters
                                         </p>
-                                        {hasValidSubscription && election.subscription && (
-                                            <p className="text-xs text-green-600">
-                                                Active until {new Date(election.subscription.ends_at).toLocaleDateString()}
-                                            </p>
-                                        )}
-                                        {!hasValidSubscription && election.subscription && (
-                                            <p className="text-xs text-red-500">
-                                                Expired
-                                            </p>
-                                        )}
+                                        {hasValidSubscription &&
+                                            election.subscription && (
+                                                <p className="text-xs text-green-600">
+                                                    Active until{' '}
+                                                    {new Date(
+                                                        election.subscription
+                                                            .ends_at,
+                                                    ).toLocaleDateString()}
+                                                </p>
+                                            )}
+                                        {!hasValidSubscription &&
+                                            election.subscription && (
+                                                <p className="text-xs text-red-500">
+                                                    Expired
+                                                </p>
+                                            )}
                                     </div>
                                 </>
                             ) : (
                                 <>
                                     <Crown className="h-5 w-5 text-yellow-600" />
                                     <div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Current Plan</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">FREE</p>
-                                        <p className="text-xs text-gray-500">Up to 20 voters • No payment required</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            Current Plan
+                                        </p>
+                                        <p className="font-semibold text-gray-900 dark:text-white">
+                                            FREE
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            Up to 20 voters • No payment
+                                            required
+                                        </p>
                                     </div>
                                 </>
                             )}
@@ -1855,7 +1923,7 @@ export default function ElectionShow({ election, plans }: Props) {
                     </nav>
                 </div>
 
-                {/* Tab content - Keep original */}
+                {/* Tab content */}
                 <div className="rounded-xl border border-[#e3e3e0] bg-white p-6 dark:border-[#3E3E3A] dark:bg-[#161615]">
                     {/* ── Overview ── */}
                     {activeTab === 'overview' && (
@@ -1966,7 +2034,7 @@ export default function ElectionShow({ election, plans }: Props) {
                                         label: 'Leaderboard URL',
                                         url: leaderboardUrl,
                                     },
-                                ].map(({ label, url }) => (
+                                ].map(({ label, url}) => (
                                     <div
                                         key={label}
                                         className="rounded-lg border border-[#e3e3e0] p-4 dark:border-[#3E3E3A]"
@@ -1975,6 +2043,7 @@ export default function ElectionShow({ election, plans }: Props) {
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                                     {label}
+
                                                 </p>
                                                 <code className="mt-1 block truncate text-sm text-blue-600 dark:text-blue-400">
                                                     {url}
@@ -1989,14 +2058,6 @@ export default function ElectionShow({ election, plans }: Props) {
                                                 <Copy className="h-4 w-4" />
                                             </button>
                                         </div>
-                                        {label === 'Election URL' &&
-                                            election.status !== 'active' && (
-                                                <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-500">
-                                                    ⚠️ This URL will not be
-                                                    accessible until the
-                                                    election has been launched.
-                                                </p>
-                                            )}
                                     </div>
                                 ))}
                                 {copied && (
@@ -2023,12 +2084,34 @@ export default function ElectionShow({ election, plans }: Props) {
                                         )}
                                 </h3>
                                 <button
-                                    onClick={() => setIsBallotModalOpen(true)}
-                                    className="rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700"
+                                    onClick={() => {
+                                        if (!isEditable) {
+                                            alert('This election is not in draft mode. You cannot add ballots.');
+                                            return;
+                                        }
+                                        setIsBallotModalOpen(true);
+                                    }}
+                                    className={`rounded-lg px-3 py-1.5 text-sm text-white transition-all ${
+                                        isEditable
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-gray-400 cursor-not-allowed'
+                                    }`}
+                                    disabled={!isEditable}
                                 >
                                     + Add Question
                                 </button>
                             </div>
+
+                            {!isEditable && (
+                                <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                                    <div className="flex items-start gap-2">
+                                        <Lock className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                                            This election is {election.status}. You cannot add or modify ballots.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {election.ballots && election.ballots.length > 0 ? (
                                 <div className="space-y-6">
@@ -2045,7 +2128,7 @@ export default function ElectionShow({ election, plans }: Props) {
                                             return (
                                                 <div
                                                     key={ballot.id}
-                                                    className="group overflow-hidden rounded-xl border border-[#e3e3e0] bg-white dark:border-[#3E3E3A] dark:bg-[#161615]"
+                                                    className={`group overflow-hidden rounded-xl border border-[#e3e3e0] bg-white dark:border-[#3E3E3A] dark:bg-[#161615] ${!isEditable ? 'opacity-75' : ''}`}
                                                 >
                                                     <div
                                                         className={`flex items-start justify-between px-5 py-4 ${colors.bg} border-b ${colors.border}`}
@@ -2088,8 +2171,13 @@ export default function ElectionShow({ election, plans }: Props) {
                                                                         ballot,
                                                                     )
                                                                 }
-                                                                title="Manage options"
-                                                                className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                                                                title={isEditable ? "Manage options" : "Read-only"}
+                                                                className={`rounded p-1.5 ${
+                                                                    isEditable
+                                                                        ? 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800'
+                                                                        : 'text-gray-300 cursor-not-allowed'
+                                                                }`}
+                                                                disabled={!isEditable}
                                                             >
                                                                 <Settings className="h-4 w-4" />
                                                             </button>
@@ -2099,8 +2187,13 @@ export default function ElectionShow({ election, plans }: Props) {
                                                                         ballot,
                                                                     )
                                                                 }
-                                                                title="Delete ballot"
-                                                                className="rounded p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                                                title={isEditable ? "Delete ballot" : "Read-only"}
+                                                                className={`rounded p-1.5 ${
+                                                                    isEditable
+                                                                        ? 'text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20'
+                                                                        : 'text-gray-300 cursor-not-allowed'
+                                                                }`}
+                                                                disabled={!isEditable}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </button>
@@ -2144,7 +2237,11 @@ export default function ElectionShow({ election, plans }: Props) {
                                                                                     key={
                                                                                         option.id
                                                                                     }
-                                                                                    className="group/opt flex items-center gap-3 rounded-lg border border-[#e3e3e0] p-3 transition-all hover:border-gray-300 hover:shadow-sm dark:border-[#3E3E3A] dark:hover:border-gray-600"
+                                                                                    className={`group/opt flex items-center gap-3 rounded-lg border border-[#e3e3e0] p-3 transition-all ${
+                                                                                        isEditable
+                                                                                            ? 'hover:border-gray-300 hover:shadow-sm dark:hover:border-gray-600'
+                                                                                            : 'opacity-75'
+                                                                                    } dark:border-[#3E3E3A]`}
                                                                                 >
                                                                                     {option.should_display_a_photo &&
                                                                                     option.photo_url ? (
@@ -2193,8 +2290,13 @@ export default function ElectionShow({ election, plans }: Props) {
                                                                                                 ballot,
                                                                                             )
                                                                                         }
-                                                                                        title="Remove option"
-                                                                                        className="shrink-0 rounded p-1 text-gray-300 opacity-0 transition-all group-hover/opt:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-gray-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                                                                                        title={isEditable ? "Remove option" : "Read-only"}
+                                                                                        className={`shrink-0 rounded p-1 ${
+                                                                                            isEditable
+                                                                                                ? 'text-gray-300 opacity-0 transition-all group-hover/opt:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-gray-600 dark:hover:bg-red-900/20 dark:hover:text-red-400'
+                                                                                                : 'text-gray-200 cursor-not-allowed'
+                                                                                        }`}
+                                                                                        disabled={!isEditable}
                                                                                     >
                                                                                         <Trash2 className="h-3.5 w-3.5" />
                                                                                     </button>
@@ -2211,18 +2313,20 @@ export default function ElectionShow({ election, plans }: Props) {
                                                                         options
                                                                         yet
                                                                     </p>
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleManageOptions(
-                                                                                ballot,
-                                                                            )
-                                                                        }
-                                                                        className="mt-1 text-xs text-red-600 hover:underline dark:text-red-500"
-                                                                    >
-                                                                        Add
-                                                                        options
-                                                                        →
-                                                                    </button>
+                                                                    {isEditable && (
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleManageOptions(
+                                                                                    ballot,
+                                                                                )
+                                                                            }
+                                                                            className="mt-1 text-xs text-red-600 hover:underline dark:text-red-500"
+                                                                        >
+                                                                            Add
+                                                                            options
+                                                                            →
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         )}
@@ -2262,8 +2366,9 @@ export default function ElectionShow({ election, plans }: Props) {
                                         No ballots yet
                                     </h3>
                                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                        Add your first ballot question to get
-                                        started.
+                                        {isEditable
+                                            ? 'Add your first ballot question to get started.'
+                                            : 'This election is in read-only mode. Ballots cannot be added.'}
                                     </p>
                                 </div>
                             )}
@@ -2286,12 +2391,28 @@ export default function ElectionShow({ election, plans }: Props) {
                                 </h3>
                                 <button
                                     onClick={() => setIsAddVoterModalOpen(true)}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700"
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white transition-all ${
+                                        isEditable
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-gray-400 cursor-not-allowed'
+                                    }`}
+                                    disabled={!isEditable}
                                 >
                                     <Plus className="h-4 w-4" />
                                     Add Voters
                                 </button>
                             </div>
+
+                            {!isEditable && (
+                                <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                                    <div className="flex items-start gap-2">
+                                        <Lock className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                                            This election is {election.status}. You cannot add or modify voters.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {election.voters && election.voters.length > 0 ? (
                                 <div className="overflow-hidden rounded-lg border border-[#e3e3e0] dark:border-[#3E3E3A]">
@@ -2390,8 +2511,13 @@ export default function ElectionShow({ election, plans }: Props) {
                                                                     voter,
                                                                 )
                                                             }
-                                                            className="rounded p-1 text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-gray-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                                                            title="Remove voter"
+                                                            title={isEditable ? "Remove voter" : "Read-only"}
+                                                            className={`rounded p-1 ${
+                                                                isEditable
+                                                                    ? 'text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-gray-600 dark:hover:bg-red-900/20 dark:hover:text-red-400'
+                                                                    : 'text-gray-200 cursor-not-allowed'
+                                                            }`}
+                                                            disabled={!isEditable}
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </button>
@@ -2408,18 +2534,21 @@ export default function ElectionShow({ election, plans }: Props) {
                                         No voters added yet
                                     </h3>
                                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                        Add voters individually or import a CSV
-                                        file.
+                                        {isEditable
+                                            ? 'Add voters individually or import a CSV file.'
+                                            : 'This election is in read-only mode. Voters cannot be added.'}
                                     </p>
-                                    <button
-                                        onClick={() =>
-                                            setIsAddVoterModalOpen(true)
-                                        }
-                                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Add Voters
-                                    </button>
+                                    {isEditable && (
+                                        <button
+                                            onClick={() =>
+                                                setIsAddVoterModalOpen(true)
+                                            }
+                                            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Add Voters
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -2428,15 +2557,77 @@ export default function ElectionShow({ election, plans }: Props) {
                     {/* ── Preview ── */}
                     {activeTab === 'preview' && (
                         <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
-                                Election Preview
-                            </h3>
-                            <div className="rounded-lg border border-[#e3e3e0] bg-gray-50 p-6 dark:border-[#3E3E3A] dark:bg-gray-900/20">
-                                <p className="text-center text-gray-600 dark:text-gray-400">
-                                    Preview will be available once you add
-                                    ballots to your election.
-                                </p>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                                    Election Preview
+                                </h3>
+                                <div className="flex gap-2">
+                                    {election.ballots.length > 0 && (
+                                        <a
+                                            href={previewUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                                        >
+                                            Open Preview{' '}
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                    )}
+                                </div>
                             </div>
+
+                            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                <div className="flex items-start gap-3">
+                                    <EyeIcon className="mt-0.5 h-5 w-5 text-blue-600" />
+                                    <div>
+                                        <p className="font-medium text-blue-800 dark:text-blue-400">
+                                            Preview Mode - Always Available
+                                        </p>
+                                        <p className="mt-1 text-sm text-blue-700 dark:text-blue-500">
+                                            The preview is always accessible, regardless of the election status.
+                                            {election.status === 'draft' && ' Use it to test your election before launching.'}
+                                            {election.status === 'active' && ' See exactly what voters are seeing right now.'}
+                                            {election.status === 'completed' && ' Review how the election appeared to voters.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {election.ballots.length > 0 ? (
+                                <div className="rounded-lg border border-[#e3e3e0] bg-gray-50 p-6 dark:border-[#3E3E3A] dark:bg-gray-900/20">
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-[#161615]">
+                                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Ballots
+                                            </p>
+                                            <p className="text-2xl font-bold text-[#1b1b18] dark:text-white">
+                                                {election.ballots.length}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Questions voters will answer
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-[#161615]">
+                                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Options
+                                            </p>
+                                            <p className="text-2xl font-bold text-[#1b1b18] dark:text-white">
+                                                {totalCandidates}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Total choices available
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border border-[#e3e3e0] bg-gray-50 p-6 dark:border-[#3E3E3A] dark:bg-gray-900/20">
+                                    <p className="text-center text-gray-600 dark:text-gray-400">
+                                        Preview will be available once you add
+                                        ballots to your election.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -2455,10 +2646,14 @@ export default function ElectionShow({ election, plans }: Props) {
                                                 Ready to launch?
                                             </p>
                                             <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                                                Once launched, voters will be able to access the election and cast their votes.
+                                                Once launched, voters will be
+                                                able to access the election and
+                                                cast their votes.
                                             </p>
                                             <button
-                                                onClick={() => setIsLaunchModalOpen(true)}
+                                                onClick={() =>
+                                                    setIsLaunchModalOpen(true)
+                                                }
                                                 className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
                                             >
                                                 <Rocket className="h-4 w-4" />
@@ -2477,28 +2672,44 @@ export default function ElectionShow({ election, plans }: Props) {
                                                     Election is active
                                                 </p>
                                                 <p className="mt-1 text-sm text-green-700 dark:text-green-500">
-                                                    Voters can currently access the election and cast their votes.
+                                                    Voters can currently access
+                                                    the election and cast their
+                                                    votes.
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="grid gap-4 sm:grid-cols-2">
-                                        {/* Pause */}
                                         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-5 dark:border-yellow-800 dark:bg-yellow-900/20">
                                             <div className="flex items-start gap-3">
                                                 <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
                                                 <div>
-                                                    <p className="font-medium text-yellow-800 dark:text-yellow-400">Pause Election</p>
+                                                    <p className="font-medium text-yellow-800 dark:text-yellow-400">
+                                                        Pause Election
+                                                    </p>
                                                     <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                                                        Temporarily stop voting. Voters won't be able to cast votes until you resume.
+                                                        Temporarily stop voting.
+                                                        Voters won't be able to
+                                                        cast votes until you
+                                                        resume.
                                                     </p>
                                                     <button
                                                         onClick={() => {
-                                                            if (confirm('Are you sure you want to pause this election?')) {
-                                                                router.post(`/elections/${election.id}/pause`, {}, {
-                                                                    onSuccess: () => router.reload(),
-                                                                });
+                                                            if (
+                                                                confirm(
+                                                                    'Are you sure you want to pause this election?',
+                                                                )
+                                                            ) {
+                                                                router.post(
+                                                                    `/elections/${election.id}/pause`,
+                                                                    {},
+                                                                    {
+                                                                        onSuccess:
+                                                                            () =>
+                                                                                router.reload(),
+                                                                    },
+                                                                );
                                                             }
                                                         }}
                                                         className="mt-4 inline-flex items-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700"
@@ -2510,21 +2721,35 @@ export default function ElectionShow({ election, plans }: Props) {
                                             </div>
                                         </div>
 
-                                        {/* End */}
                                         <div className="rounded-lg border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
                                             <div className="flex items-start gap-3">
                                                 <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
                                                 <div>
-                                                    <p className="font-medium text-red-800 dark:text-red-400">End Election</p>
+                                                    <p className="font-medium text-red-800 dark:text-red-400">
+                                                        End Election
+                                                    </p>
                                                     <p className="mt-1 text-sm text-red-700 dark:text-red-500">
-                                                        Permanently close voting. This cannot be undone — no more votes will be accepted.
+                                                        Permanently close
+                                                        voting. This cannot be
+                                                        undone — no more votes
+                                                        will be accepted.
                                                     </p>
                                                     <button
                                                         onClick={() => {
-                                                            if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
-                                                                router.post(`/elections/${election.id}/end`, {}, {
-                                                                    onSuccess: () => router.reload(),
-                                                                });
+                                                            if (
+                                                                confirm(
+                                                                    'Are you sure you want to end this election? This cannot be undone.',
+                                                                )
+                                                            ) {
+                                                                router.post(
+                                                                    `/elections/${election.id}/end`,
+                                                                    {},
+                                                                    {
+                                                                        onSuccess:
+                                                                            () =>
+                                                                                router.reload(),
+                                                                    },
+                                                                );
                                                             }
                                                         }}
                                                         className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
@@ -2543,16 +2768,27 @@ export default function ElectionShow({ election, plans }: Props) {
                                         <div className="flex items-start gap-3">
                                             <AlertCircle className="mt-0.5 h-5 w-5 text-yellow-600" />
                                             <div>
-                                                <p className="font-medium text-yellow-800 dark:text-yellow-400">Election is paused</p>
+                                                <p className="font-medium text-yellow-800 dark:text-yellow-400">
+                                                    Election is paused
+                                                </p>
                                                 <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-500">
-                                                    Voting is temporarily suspended. Resume to allow voters to continue casting votes.
+                                                    Voting is temporarily
+                                                    suspended. Resume to allow
+                                                    voters to continue casting
+                                                    votes.
                                                 </p>
                                                 <div className="mt-4 flex gap-3">
                                                     <button
                                                         onClick={() => {
-                                                            router.post(`/elections/${election.id}/resume`, {}, {
-                                                                onSuccess: () => router.reload(),
-                                                            });
+                                                            router.post(
+                                                                `/elections/${election.id}/resume`,
+                                                                {},
+                                                                {
+                                                                    onSuccess:
+                                                                        () =>
+                                                                            router.reload(),
+                                                                },
+                                                            );
                                                         }}
                                                         className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
                                                     >
@@ -2561,10 +2797,20 @@ export default function ElectionShow({ election, plans }: Props) {
                                                     </button>
                                                     <button
                                                         onClick={() => {
-                                                            if (confirm('Are you sure you want to end this election? This cannot be undone.')) {
-                                                                router.post(`/elections/${election.id}/end`, {}, {
-                                                                    onSuccess: () => router.reload(),
-                                                                });
+                                                            if (
+                                                                confirm(
+                                                                    'Are you sure you want to end this election? This cannot be undone.',
+                                                                )
+                                                            ) {
+                                                                router.post(
+                                                                    `/elections/${election.id}/end`,
+                                                                    {},
+                                                                    {
+                                                                        onSuccess:
+                                                                            () =>
+                                                                                router.reload(),
+                                                                    },
+                                                                );
                                                             }
                                                         }}
                                                         className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
@@ -2586,7 +2832,8 @@ export default function ElectionShow({ election, plans }: Props) {
                                                 Election is {election.status}
                                             </p>
                                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                                This election has ended and is now {election.status}.
+                                                This election has ended and is
+                                                now {election.status}.
                                             </p>
                                         </div>
                                     </div>
@@ -2618,6 +2865,7 @@ export default function ElectionShow({ election, plans }: Props) {
                 isOpen={isAddVoterModalOpen}
                 onClose={() => setIsAddVoterModalOpen(false)}
                 electionId={election.id}
+                isEditable={isEditable}
             />
 
             <LeaderboardSettingsModal

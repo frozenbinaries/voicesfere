@@ -68,6 +68,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
   //TESTING ROUTES
   Route::get('email/preview', [MailTestingController::class, 'preview'])->name('email.preview');
+
+  //preview
+  Route::get('/vote/{electionIdentifier}/preview', [VoteController::class, 'preview'])->name('elections.vote.preview');
 });
 
 

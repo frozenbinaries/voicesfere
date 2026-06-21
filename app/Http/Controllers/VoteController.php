@@ -107,7 +107,17 @@ class VoteController extends Controller
         }
 
         $election = Election::where('identifier', $electionIdentifier)
-            ->with(['ballots.options'])
+            ->with([
+                'ballots' => function ($query) {
+                    // Order ballots by creation date (oldest first)
+                    $query->orderBy('created_at', 'asc')
+                        ->with(['options' => function ($query) {
+                            // Order options within each ballot
+                            $query->orderBy('display_order', 'asc')
+                                ->orderBy('created_at', 'asc');
+                        }]);
+                }
+            ])
             ->firstOrFail();
 
         $voter = Voter::where('voter_token', session('voter_token'))->first();
@@ -224,6 +234,28 @@ class VoteController extends Controller
     {
         return inertia('Votes/ThankYou', [
             'electionIdentifier' => $electionIdentifier
+        ]);
+    }
+
+    public function preview($electionIdentifier, Request $request)
+    {
+        $election = Election::where('identifier', $electionIdentifier)
+            ->with([
+                'ballots' => function ($query) {
+                    // Order ballots by creation date (oldest first)
+                    $query->orderBy('created_at', 'asc')
+                        ->with(['options' => function ($query) {
+                            // Order options by display_order or created_at
+                            $query->orderBy('display_order', 'asc');
+                        }]);
+                }
+            ])
+            ->firstOrFail();
+
+        return inertia('Votes/VoteHome', [
+            'election' => $election,
+            'voter' => Auth()->user(),
+            'isPreview' => true,
         ]);
     }
 }

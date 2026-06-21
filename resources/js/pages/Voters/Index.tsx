@@ -20,6 +20,7 @@ import {
     Filter,
     BarChart3,
     IdCard,
+    Lock,
 } from 'lucide-react';
 
 import { useState, useRef, useEffect } from 'react';
@@ -62,12 +63,14 @@ function AddVoterModal({
     electionId,
     electionTitle,
     onSuccess,
+    isEditable = true,
 }: {
     isOpen: boolean;
     onClose: () => void;
     electionId: number;
     electionTitle: string;
     onSuccess?: () => void;
+    isEditable?: boolean;
 }) {
     const [name, setName] = useState('');
     const [voterId, setVoterId] = useState('');
@@ -86,6 +89,11 @@ function AddVoterModal({
     if (!isOpen) return null;
 
     const handleAddSingle = () => {
+        if (!isEditable) {
+            setErrors({ email: 'Cannot add voters to a completed or active election.' });
+            return;
+        }
+
         const newErrors: { name?: string; voter_id?: string; email?: string } =
             {};
 
@@ -147,6 +155,11 @@ function AddVoterModal({
     };
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!isEditable) {
+            setImportErrors(['Cannot import voters to a completed or active election.']);
+            return;
+        }
+
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -186,14 +199,12 @@ function AddVoterModal({
     };
 
     const downloadTemplate = () => {
-        // Create CSV content with headers and sample data
         const csv = 'name,voter_id,email';
 
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
 
-        // Create filename with election name and timestamp
         const sanitizedElectionName = electionTitle.replace(/\s+/g, '_');
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
         const filename = `${sanitizedElectionName}_template_${timestamp}.csv`;
@@ -214,7 +225,7 @@ function AddVoterModal({
                             Add Voter
                         </h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Add individually or import a CSV file
+                            {isEditable ? 'Add individually or import a CSV file' : 'Read-Only Mode'}
                         </p>
                     </div>
                     <button
@@ -226,6 +237,20 @@ function AddVoterModal({
                 </div>
 
                 <div className="space-y-4 p-6">
+                    {!isEditable && (
+                        <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                            <div className="flex items-start gap-2">
+                                <Lock className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                <div className="text-xs text-yellow-800 dark:text-yellow-300">
+                                    <p className="font-medium">Read-Only Mode</p>
+                                    <p className="mt-1">
+                                        This election is not in draft mode. You cannot add or modify voters.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {importSuccess && (
                         <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
                             <p className="text-sm text-green-800 dark:text-green-300">
@@ -255,11 +280,12 @@ function AddVoterModal({
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Full name *"
+                                disabled={!isEditable}
                                 className={`w-full rounded-lg border ${
                                     errors.name
                                         ? 'border-red-500'
                                         : 'border-[#e3e3e0]'
-                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                             />
                             {errors.name && (
                                 <p className="mt-1 text-xs text-red-500">
@@ -275,11 +301,12 @@ function AddVoterModal({
                                 value={voterId}
                                 onChange={(e) => setVoterId(e.target.value)}
                                 placeholder="Voter ID (required if no email)"
+                                disabled={!isEditable}
                                 className={`w-full rounded-lg border ${
                                     errors.voter_id
                                         ? 'border-red-500'
                                         : 'border-[#e3e3e0]'
-                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                             />
                             {errors.voter_id && (
                                 <p className="mt-1 text-xs text-red-500">
@@ -295,13 +322,14 @@ function AddVoterModal({
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Email address (required if no Voter ID)"
+                                disabled={!isEditable}
                                 className={`w-full rounded-lg border ${
                                     errors.email
                                         ? 'border-red-500'
                                         : 'border-[#e3e3e0]'
-                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white`}
+                                } py-2 pr-3 pl-9 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                                 onKeyDown={(e) =>
-                                    e.key === 'Enter' && handleAddSingle()
+                                    e.key === 'Enter' && isEditable && handleAddSingle()
                                 }
                             />
                             {errors.email && (
@@ -311,62 +339,10 @@ function AddVoterModal({
                             )}
                         </div>
 
-                        <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
-                            <div className="flex items-start gap-2">
-                                <svg
-                                    className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                </svg>
-                                <div className="text-xs text-yellow-800 dark:text-yellow-300">
-                                    <p className="font-medium">Requirement:</p>
-                                    <p className="mt-1">
-                                        Either <strong>Email</strong> or{' '}
-                                        <strong>Voter ID</strong> must be
-                                        provided. Both can also be provided.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                            <div className="flex items-start gap-2">
-                                <svg
-                                    className="mt-0.5 h-4 w-4 text-blue-600 dark:text-blue-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                </svg>
-                                <div className="text-xs text-blue-800 dark:text-blue-300">
-                                    <p className="font-medium">Voter Token</p>
-                                    <p className="mt-1">
-                                        A unique voter token will be
-                                        automatically generated and sent to the
-                                        voter's email address (if provided).
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
                         <button
                             onClick={handleAddSingle}
-                            disabled={saving || !name.trim()}
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                            disabled={saving || !name.trim() || !isEditable}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-all disabled:opacity-50 bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
                         >
                             {saving ? (
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -394,8 +370,8 @@ function AddVoterModal({
                             Download Template
                         </button>
                         <button
-                            onClick={() => fileRef.current?.click()}
-                            disabled={importing}
+                            onClick={() => isEditable && fileRef.current?.click()}
+                            disabled={importing || !isEditable}
                             className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#e3e3e0] px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:opacity-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
                         >
                             {importing ? (
@@ -437,11 +413,13 @@ function DeleteVoterModal({
     onClose,
     onConfirm,
     voterName,
+    isEditable = true,
 }: {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: () => void;
     voterName: string;
+    isEditable?: boolean;
 }) {
     const [confirmText, setConfirmText] = useState('');
     const [deleting, setDeleting] = useState(false);
@@ -484,6 +462,17 @@ function DeleteVoterModal({
                 </div>
 
                 <div className="p-6">
+                    {!isEditable && (
+                        <div className="mb-4 rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                            <div className="flex items-start gap-2">
+                                <Lock className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                                    This election is not in draft mode. Voters cannot be removed.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <p className="text-sm text-gray-700 dark:text-gray-300">
                         You are about to remove{' '}
                         <span className="font-semibold text-red-600">
@@ -503,7 +492,8 @@ function DeleteVoterModal({
                             type="text"
                             value={confirmText}
                             onChange={(e) => setConfirmText(e.target.value)}
-                            className="mt-2 w-full rounded-lg border border-[#e3e3e0] px-3 py-2 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white"
+                            disabled={!isEditable}
+                            className="mt-2 w-full rounded-lg border border-[#e3e3e0] px-3 py-2 text-sm focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder={`Type "${voterName}" to confirm`}
                             autoFocus
                         />
@@ -518,8 +508,8 @@ function DeleteVoterModal({
                         </button>
                         <button
                             onClick={handleConfirm}
-                            disabled={confirmText !== voterName || deleting}
-                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                            disabled={confirmText !== voterName || deleting || !isEditable}
+                            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-all disabled:opacity-50 bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
                         >
                             {deleting ? (
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -678,17 +668,18 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    // Function to refresh data by forcing a re-render
     const refreshData = () => {
         window.location.reload();
     };
 
-    // Refresh data when the component mounts or refreshKey changes
     useEffect(() => {
-        // You can add any refresh logic here
+        // Refresh logic
     }, [refreshKey]);
 
     const currentVoters = selectedElection?.voters || [];
+    const isEditable = selectedElection?.status === 'draft';
+    const isActive = selectedElection?.status === 'active';
+    const isCompleted = selectedElection?.status === 'completed' || selectedElection?.status === 'archived';
 
     const filteredVoters = currentVoters.filter((voter) => {
         const matchesSearch =
@@ -705,6 +696,10 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
     });
 
     const handleDeleteVoter = (voter: Voter) => {
+        if (!isEditable) {
+            alert('This election is not in draft mode. You cannot remove voters.');
+            return;
+        }
         setVoterToDelete(voter);
         setIsDeleteModalOpen(true);
     };
@@ -729,6 +724,23 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
     const pendingCount = totalVoters - votedCount;
     const turnout =
         totalVoters > 0 ? ((votedCount / totalVoters) * 100).toFixed(1) : 0;
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'draft':
+                return { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300' };
+            case 'active':
+                return { label: 'Active', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' };
+            case 'paused':
+                return { label: 'Paused', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' };
+            case 'completed':
+                return { label: 'Completed', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' };
+            case 'archived':
+                return { label: 'Archived', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' };
+            default:
+                return { label: status, color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300' };
+        }
+    };
 
     return (
         <AdminLayout title="Voters">
@@ -772,28 +784,36 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
                                         onClick={() => setIsDropdownOpen(false)}
                                     />
                                     <div className="absolute top-full left-0 z-20 mt-1 w-64 rounded-lg border border-[#e3e3e0] bg-white shadow-lg dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                        {elections.map((election) => (
-                                            <button
-                                                key={election.id}
-                                                onClick={() => {
-                                                    setSelectedElection(
-                                                        election,
-                                                    );
-                                                    setIsDropdownOpen(false);
-                                                    setSearchTerm('');
-                                                }}
-                                                className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-                                            >
-                                                <div className="truncate">
-                                                    {election.title}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {election.voters?.length ||
-                                                        0}{' '}
-                                                    voters • {election.status}
-                                                </div>
-                                            </button>
-                                        ))}
+                                        {elections.map((election) => {
+                                            const statusBadge = getStatusBadge(election.status);
+                                            return (
+                                                <button
+                                                    key={election.id}
+                                                    onClick={() => {
+                                                        setSelectedElection(
+                                                            election,
+                                                        );
+                                                        setIsDropdownOpen(false);
+                                                        setSearchTerm('');
+                                                    }}
+                                                    className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="truncate">
+                                                            {election.title}
+                                                        </div>
+                                                        <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusBadge.color}`}>
+                                                            {statusBadge.label}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {election.voters?.length ||
+                                                            0}{' '}
+                                                        voters
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </>
                             )}
@@ -801,6 +821,12 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
 
                         {selectedElection && (
                             <div className="flex gap-2">
+                                {!isEditable && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                        <Lock className="h-3.5 w-3.5" />
+                                        Read-Only
+                                    </span>
+                                )}
                                 <button
                                     onClick={() => setIsExportModalOpen(true)}
                                     className="inline-flex items-center gap-2 rounded-lg border border-[#e3e3e0] px-3 py-1.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
@@ -810,7 +836,12 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
                                 </button>
                                 <button
                                     onClick={() => setIsAddVoterModalOpen(true)}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-all hover:bg-red-700"
+                                    disabled={!isEditable}
+                                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-all ${
+                                        isEditable
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-gray-400 cursor-not-allowed'
+                                    }`}
                                 >
                                     <Plus className="h-4 w-4" />
                                     Add Voters
@@ -822,6 +853,23 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
 
                 {selectedElection ? (
                     <>
+                        {/* Read-Only Banner */}
+                        {!isEditable && (
+                            <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                                <div className="flex items-start gap-2">
+                                    <Lock className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                    <div>
+                                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+                                            Read-Only Mode
+                                        </p>
+                                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                                            This election is {selectedElection.status}. You cannot add, modify, or remove voters.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Stats Cards */}
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="rounded-lg border border-[#e3e3e0] bg-white p-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
@@ -1013,7 +1061,13 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
                                                                     voter,
                                                                 )
                                                             }
-                                                            className="rounded p-1 text-gray-400 transition-all hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                                            disabled={!isEditable}
+                                                            className={`rounded p-1 transition-all ${
+                                                                isEditable
+                                                                    ? 'text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20'
+                                                                    : 'text-gray-300 cursor-not-allowed'
+                                                            }`}
+                                                            title={isEditable ? 'Remove voter' : 'Read-only'}
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </button>
@@ -1055,6 +1109,7 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
                         electionId={selectedElection.id}
                         electionTitle={selectedElection.title}
                         onSuccess={refreshData}
+                        isEditable={isEditable}
                     />
                     <ExportVotersModal
                         isOpen={isExportModalOpen}
@@ -1073,6 +1128,7 @@ export default function VotersIndex({ elections, selectedElectionId }: Props) {
                 }}
                 onConfirm={handleConfirmDelete}
                 voterName={voterToDelete?.name || ''}
+                isEditable={isEditable}
             />
         </AdminLayout>
     );

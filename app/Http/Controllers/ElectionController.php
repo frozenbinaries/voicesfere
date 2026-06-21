@@ -46,20 +46,34 @@ class ElectionController extends Controller
 
         $validated['created_by'] = auth()->id();
         $validated['identifier'] = Str::uuid();
-        Election::create($validated);
+        $election=Election::create($validated);
 
-        return redirect()->back()->with('success', 'Election created successfully!');
+        return redirect()->route('elections.show', $election->id)->with('success', 'Election created successfully!');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Election $election)
-    {
-        $plans = Plan::all();
-        $election = Election::with('candidates', 'ballots.options', 'voters', 'votes', 'subscription.plan')->find($election->id);
-        return inertia('Elections/Show', ['election' => $election, 'plans' => $plans]);
-    }
+   public function show(Election $election)
+{
+    $plans = Plan::all();
+
+    $election = Election::with([
+        'candidates',
+        'ballots' => function ($query) {
+            // Order by created_at ascending (oldest first)
+            $query->orderBy('created_at', 'asc')->with('options');
+        },
+        'voters',
+        'votes',
+        'subscription.plan'
+    ])->find($election->id);
+
+    return inertia('Elections/Show', [
+        'election' => $election,
+        'plans' => $plans
+    ]);
+}
 
     /**
      * Show the form for editing the specified resource.
@@ -394,8 +408,8 @@ class ElectionController extends Controller
                 'title' => $newTitle,
                 'description' => $original->description,
                 'status' => 'draft',
-                'start_date' => null,
-                'end_date' => null,
+                'start_date' => now()->addDays(7),
+                'end_date' => now()->addDays(8),
                 'identifier' => Str::uuid(),
                 'settings' => $original->settings,
                 'is_leaderboard_public' => false,
