@@ -131,37 +131,23 @@ const formatPrice = (price: string, currency: string) => {
     }).format(parseFloat(price));
 };
 
-// ─── Subscription Modal (Popup) ──────────────────────────────────────────────
-function SubscriptionModal({
+// ─── Confirmation Modal for Subscription ─────────────────────────────────────
+function SubscribeConfirmationModal({
     isOpen,
     onClose,
-    plans,
-    currentPlan,
-    voterCount,
-    onSubscribe,
+    onConfirm,
+    plan,
+    electionId,
+    isLoading,
 }: {
     isOpen: boolean;
     onClose: () => void;
-    plans: Plan[];
-    currentPlan: Plan | null;
-    voterCount: number;
-    onSubscribe: (planId: number) => void;
+    onConfirm: () => void;
+    plan: Plan | null;
+    electionId: number;
+    isLoading: boolean;
 }) {
-    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-    const [subscribing, setSubscribing] = useState(false);
-
-    if (!isOpen) return null;
-
-    const recommendedPlan = plans.find(
-        (plan) =>
-            plan.max_voters >= voterCount && plan.min_voters <= voterCount,
-    );
-
-    const handleSubscribe = () => {
-        if (!selectedPlan) return;
-        setSubscribing(true);
-        onSubscribe(selectedPlan.id);
-    };
+    if (!isOpen || !plan) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -169,147 +155,79 @@ function SubscriptionModal({
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative z-10 max-h-[90vh] w-full max-w-4xl animate-in overflow-y-auto rounded-2xl bg-white shadow-2xl duration-200 fade-in zoom-in dark:bg-[#161615]">
-                <div className="sticky top-0 z-10 border-b border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                                <CreditCard className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
-                                    {currentPlan
-                                        ? 'Upgrade Subscription'
-                                        : 'Choose a Subscription Plan'}
-                                </h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {voterCount} eligible voters
-                                </p>
-                            </div>
+            <div className="relative z-10 max-w-md w-full animate-in rounded-2xl bg-white shadow-2xl duration-200 fade-in zoom-in dark:bg-[#161615]">
+                <div className="flex items-center justify-between border-b border-[#e3e3e0] p-6 dark:border-[#3E3E3A]">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                            <CreditCard className="h-5 w-5 text-blue-600" />
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="p-6">
-                    {recommendedPlan && (
-                        <div className="mb-4 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                            <p className="text-sm text-blue-800 dark:text-blue-400">
-                                💡 Recommended for {voterCount} voters:{' '}
-                                <strong>{recommendedPlan.name}</strong>
+                        <div>
+                            <h3 className="text-lg font-semibold text-[#1b1b18] dark:text-white">
+                                Confirm Subscription
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                You're about to subscribe to {plan.name}
                             </p>
                         </div>
-                    )}
-
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {plans
-                            .filter((plan) => plan.status === 'active')
-                            .map((plan) => {
-                                const isCurrent = currentPlan?.id === plan.id;
-                                const isRecommended =
-                                    recommendedPlan?.id === plan.id;
-                                const isEligible =
-                                    plan.min_voters <= voterCount &&
-                                    plan.max_voters >= voterCount;
-
-                                return (
-                                    <div
-                                        key={plan.id}
-                                        className={`relative rounded-lg border-2 p-4 transition-all ${
-                                            selectedPlan?.id === plan.id
-                                                ? 'border-blue-600 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20'
-                                                : isCurrent
-                                                  ? 'border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-900/20'
-                                                  : 'border-gray-200 hover:border-blue-300 dark:border-gray-700 dark:hover:border-blue-700'
-                                        } ${!isEligible && !isCurrent ? 'opacity-60' : 'cursor-pointer'}`}
-                                        onClick={() =>
-                                            (isEligible || isCurrent) &&
-                                            !isCurrent &&
-                                            setSelectedPlan(plan)
-                                        }
-                                    >
-                                        {isCurrent && (
-                                            <div className="absolute -top-2 right-2 rounded-full bg-green-600 px-2 py-0.5 text-xs text-white">
-                                                Current
-                                            </div>
-                                        )}
-                                        {isRecommended && !isCurrent && (
-                                            <div className="absolute -top-2 right-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
-                                                Recommended
-                                            </div>
-                                        )}
-
-                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                            {plan.name}
-                                        </h3>
-                                        <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                            {formatPrice(
-                                                plan.price,
-                                                plan.currency,
-                                            )}
-                                        </p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            one-time payment
-                                        </p>
-
-                                        <div className="mt-3 space-y-2">
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                {plan.description}
-                                            </p>
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <Users className="h-4 w-4 text-gray-400" />
-                                                <span className="text-gray-600 dark:text-gray-400">
-                                                    {plan.min_voters.toLocaleString()}{' '}
-                                                    -{' '}
-                                                    {plan.max_voters.toLocaleString()}{' '}
-                                                    voters
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {!isEligible && !isCurrent && (
-                                            <p className="mt-3 text-xs text-red-500">
-                                                ⚠️ Not suitable for {voterCount}{' '}
-                                                voters
-                                            </p>
-                                        )}
-                                    </div>
-                                );
-                            })}
                     </div>
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
                 </div>
 
-                <div className="sticky bottom-0 flex justify-end gap-3 border-t border-[#e3e3e0] bg-white px-6 py-4 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                <div className="p-6 space-y-4">
+                    <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Plan</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{plan.name}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Price</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                                {formatPrice(plan.price, plan.currency)}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Voters</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                                {plan.min_voters.toLocaleString()} - {plan.max_voters.toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        You will be redirected to the checkout page to complete your payment.
+                        Your election will be activated immediately after successful payment.
+                    </p>
+                </div>
+
+                <div className="flex justify-end gap-3 border-t border-[#e3e3e0] p-6 dark:border-[#3E3E3A]">
                     <button
                         onClick={onClose}
                         className="rounded-lg border border-[#e3e3e0] px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-[#3E3E3A] dark:text-gray-300 dark:hover:bg-gray-800"
                     >
                         Cancel
                     </button>
-                    {selectedPlan && (
-                        <button
-                            onClick={handleSubscribe}
-                            disabled={subscribing}
-                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            {subscribing ? (
-                                <>
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                    Processing...
-                                </>
-                            ) : (
-                                <>
-                                    <CreditCard className="h-4 w-4" />
-                                    Subscribe to {selectedPlan.name}
-                                </>
-                            )}
-                        </button>
-                    )}
+                    <button
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+                    >
+                        {isLoading ? (
+                            <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                <CreditCard className="h-4 w-4" />
+                                Continue to Checkout
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
@@ -1487,8 +1405,9 @@ export default function ElectionShow({ election, plans }: Props) {
     const [isAddVoterModalOpen, setIsAddVoterModalOpen] = useState(false);
     const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
     const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
-    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] =
-        useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [selectedBallot, setSelectedBallot] = useState<Ballot | null>(null);
     const [ballotToDelete, setBallotToDelete] = useState<Ballot | null>(null);
     const [optionToDelete, setOptionToDelete] = useState<{
@@ -1520,6 +1439,12 @@ export default function ElectionShow({ election, plans }: Props) {
         election.subscription?.status === 'active' &&
         new Date(election.subscription.ends_at) > new Date();
 
+    // Find recommended plan based on voter count
+    const recommendedPlan = plans.find(
+        (plan) =>
+            plan.max_voters >= voterCount && plan.min_voters <= voterCount,
+    );
+
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Eye, count: null },
         {
@@ -1546,7 +1471,6 @@ export default function ElectionShow({ election, plans }: Props) {
 
     const handleManageOptions = (ballot: Ballot) => {
         if (!isEditable) {
-            // Show toast or alert
             alert('This election is not in draft mode. You cannot modify ballots.');
             return;
         }
@@ -1627,19 +1551,31 @@ export default function ElectionShow({ election, plans }: Props) {
         setVoterToDelete(null);
     };
 
-    const handleSubscribe = (planId: number) => {
-        router.post(
-            `/elections/${election.id}/subscribe`,
-            {
-                plan_id: planId,
+    // ─── Handle Subscription/Checkout ──────────────────────────────────────────
+    const handleSubscribeClick = (plan: Plan) => {
+        setSelectedPlan(plan);
+        setIsConfirmModalOpen(true);
+    };
+
+    const handleConfirmSubscription = () => {
+        if (!selectedPlan) return;
+
+        setIsLoading(true);
+
+        // Redirect to checkout with the election ID and plan ID
+        router.get(`/checkout/${election.id}`, {
+            plan_id: selectedPlan.id,
+            election_id: election.id,
+        }, {
+            onFinish: () => {
+                setIsLoading(false);
+                setIsConfirmModalOpen(false);
             },
-            {
-                onSuccess: () => {
-                    setIsSubscriptionModalOpen(false);
-                    router.reload();
-                },
-            },
-        );
+            onError: () => {
+                setIsLoading(false);
+                alert('Failed to proceed to checkout. Please try again.');
+            }
+        });
     };
 
     const handleLaunch = () => {
@@ -1814,7 +1750,7 @@ export default function ElectionShow({ election, plans }: Props) {
                     </div>
                 </div>
 
-                {/* Current Plan Badge - Always visible */}
+                {/* Current Plan Badge with Subscribe Button */}
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/20">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
@@ -1877,11 +1813,24 @@ export default function ElectionShow({ election, plans }: Props) {
                             )}
                         </div>
                         <button
-                            onClick={() => setIsSubscriptionModalOpen(true)}
+                            onClick={() => {
+                                // If no valid subscription, show the plan selector
+                                if (!hasValidSubscription) {
+                                    // Find the right plan based on voter count
+                                    const planToSelect = recommendedPlan || plans.find(p => p.status === 'active');
+                                    if (planToSelect) {
+                                        handleSubscribeClick(planToSelect);
+                                    } else {
+                                        alert('No subscription plans available.');
+                                    }
+                                } else {
+                                    alert('You already have an active subscription.');
+                                }
+                            }}
                             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
                         >
                             <CreditCard className="h-4 w-4" />
-                            {currentPlan ? 'Upgrade Plan' : 'Subscribe'}
+                            {hasValidSubscription ? 'Active' : currentPlan ? 'Renew Plan' : 'Subscribe'}
                         </button>
                     </div>
                 </div>
@@ -2881,13 +2830,16 @@ export default function ElectionShow({ election, plans }: Props) {
                 election={election}
             />
 
-            <SubscriptionModal
-                isOpen={isSubscriptionModalOpen}
-                onClose={() => setIsSubscriptionModalOpen(false)}
-                plans={plans}
-                currentPlan={currentPlan}
-                voterCount={voterCount}
-                onSubscribe={handleSubscribe}
+            <SubscribeConfirmationModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => {
+                    setIsConfirmModalOpen(false);
+                    setSelectedPlan(null);
+                }}
+                onConfirm={handleConfirmSubscription}
+                plan={selectedPlan}
+                electionId={election.id}
+                isLoading={isLoading}
             />
 
             <CustomDeleteConfirmationModal

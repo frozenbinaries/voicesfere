@@ -31,7 +31,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Starter',
                 'slug' => 'starter',
                 'description' => 'Ideal for small organizations, church groups, and community elections.',
-                'price' => 50000, // 50,000 MWK
+                'price' => 50, // 50,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 21,
                 'max_voters' => 100,
@@ -43,7 +43,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Basic',
                 'slug' => 'basic',
                 'description' => 'Great for medium-sized organizations and school-wide elections.',
-                'price' => 150000, // 150,000 MWK
+                'price' => 150, // 150,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 101,
                 'max_voters' => 300,
@@ -55,7 +55,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Standard',
                 'slug' => 'standard',
                 'description' => 'Perfect for large schools, colleges, and growing businesses.',
-                'price' => 300000, // 300,000 MWK
+                'price' => 300, // 300,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 301,
                 'max_voters' => 600,
@@ -67,7 +67,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Professional',
                 'slug' => 'professional',
                 'description' => 'Designed for large organizations and corporate elections.',
-                'price' => 500000, // 500,000 MWK
+                'price' => 500, // 500,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 601,
                 'max_voters' => 1000,
@@ -79,7 +79,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Business',
                 'slug' => 'business',
                 'description' => 'For large-scale elections with many participants.',
-                'price' => 800000, // 800,000 MWK
+                'price' => 800, // 800,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 1001,
                 'max_voters' => 2000,
@@ -91,7 +91,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Enterprise',
                 'slug' => 'enterprise',
                 'description' => 'For enterprise-level elections with thousands of voters.',
-                'price' => 1500000, // 1,500,000 MWK
+                'price' => 1500, // 1,500,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 2001,
                 'max_voters' => 5000,
@@ -103,7 +103,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Ultimate',
                 'slug' => 'ultimate',
                 'description' => 'Unlimited voters for massive nationwide or enterprise elections.',
-                'price' => 3000000, // 3,000,000 MWK
+                'price' => 3000, // 3,000,000 MWK
                 'currency' => 'MWK',
                 'min_voters' => 5001,
                 'max_voters' => 100000, // Large cap for unlimited

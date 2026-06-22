@@ -17,11 +17,13 @@ return new class extends Migration
             $table->string('slug')->unique(); // free, basic, professional, enterprise
             $table->text('description')->nullable();
             $table->decimal('price', 10, 2)->default(0);
-            $table->string('currency')->default('MWK');
+            $table->string('currency')->default('USD');
             $table->integer('min_voters');
             $table->integer('max_voters');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
+
+            $table->index(['status', 'min_voters', 'max_voters'], 'plans_status_voter_range_index');
         });
     }
 

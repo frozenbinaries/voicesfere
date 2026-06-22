@@ -14,6 +14,8 @@ use App\Http\Controllers\HelpController;
 use App\Http\Controllers\ResultsController;
 use App\Http\Controllers\FraudAnalysisController;
 use App\Http\Controllers\ResultSubscriptionController;
+use App\Http\Controllers\StripeCheckoutController;
+use Inertia\Inertia;
 
 // Route::inertia('/', 'welcome')->name('home');
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -71,6 +73,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
   //preview
   Route::get('/vote/{electionIdentifier}/preview', [VoteController::class, 'preview'])->name('elections.vote.preview');
+
+
+  //STRIPE PAYMENT
+  // Checkout page (GET)
+  // Route::get('/checkout', function () {
+  //   return Inertia::render('Checkout/CheckoutPage', [
+  //     'stripeKey' => config('services.stripe.key'),
+  //   ]);
+  // })->name('checkout.index');
+
+
+
+  // Create checkout session (POST)
+  Route::post('/checkout', [StripeCheckoutController::class, 'createCheckoutSession'])->name('checkout.create');
+  Route::get('/checkout/localize', [StripeCheckoutController::class, 'localizePrice'])->name('checkout.localize');
+  Route::get('/checkout/countries', [StripeCheckoutController::class, 'getCountries'])->name('checkout.countries');
+  // Success and cancel (GET) - These must match the URLs in Stripe
+  Route::get('/checkout/success', [StripeCheckoutController::class, 'success'])->name('checkout.success');
+  Route::get('/checkout/cancel', [StripeCheckoutController::class, 'cancel'])->name('checkout.cancel');
+  Route::get('/checkout/{election_id}', [StripeCheckoutController::class, 'show'])->name('checkout.index');
 });
 
 
@@ -94,4 +116,18 @@ Route::delete('/unsubscribe-results', [ResultSubscriptionController::class, 'uns
 Route::get('/check-subscription', [ResultSubscriptionController::class, 'check'])->name('results.check');
 //Leaderboard route
 Route::get('/leaderboard/{identifier}', [LeaderboardController::class, 'index'])->name('leaderboard.show');
+
+//STRIPE
+
+// Route::get('/checkout', function () {
+//   return Inertia::render('Checkout/CheckoutPage', [
+//     'stripeKey' => config('services.stripe.key'),
+//   ]);
+// })->name('checkout.index');
+
+// Route::get('/checkout/success', function () {
+//   return Inertia::render('Checkout/Success', [
+//     'message' => 'Order placed! You will receive an email confirmation.'
+//   ]);
+// })->name('checkout.success');
 require __DIR__ . '/settings.php';
